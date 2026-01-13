@@ -1,0 +1,244 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* ============================================
+   NOCTURNAL GLASS - Global Styles
+   ============================================ */
+
+/* Base Layer */
+@layer base {
+  * {
+    @apply border-white/10;
+  }
+
+  body {
+    @apply bg-gradient-void min-h-screen;
+    background-attachment: fixed;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-void-slate/50;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neon-violet/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-neon-violet/50;
+  }
+}
+
+/* Component Layer */
+@layer components {
+  /* ============================================
+     Glass Card - The Core Recipe
+     ============================================ */
+  .glass-card {
+    @apply relative;
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+
+  .glass-card-hover:hover {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.15);
+  }
+
+  /* ============================================
+     Glass Sidebar
+     ============================================ */
+  .glass-sidebar {
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* ============================================
+     Neon Buttons
+     ============================================ */
+  .btn-neon {
+    @apply px-6 py-2.5 rounded-xl font-medium;
+    @apply bg-neon-violet/20 text-neon-violet;
+    @apply border border-neon-violet/30;
+    @apply transition-all duration-300;
+  }
+
+  .btn-neon:hover {
+    @apply bg-neon-violet/30;
+    box-shadow: 0 0 25px rgba(167, 139, 250, 0.4);
+  }
+
+  .btn-neon-solid {
+    @apply px-6 py-2.5 rounded-xl font-medium;
+    @apply bg-gradient-neon text-white;
+    @apply transition-all duration-300;
+  }
+
+  .btn-neon-solid:hover {
+    box-shadow: 0 0 30px rgba(167, 139, 250, 0.5);
+    transform: translateY(-1px);
+  }
+
+  /* ============================================
+     Status Indicators
+     ============================================ */
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-healthy {
+    @apply bg-cyber-emerald shadow-neon-emerald;
+  }
+
+  .status-warning {
+    @apply bg-solar-amber;
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+  }
+
+  .status-danger {
+    @apply bg-toxic-rose shadow-neon-rose animate-glow-pulse;
+  }
+
+  /* ============================================
+     Health Bar
+     ============================================ */
+  .health-bar {
+    @apply h-1.5 rounded-full bg-glass-layer/50 overflow-hidden;
+  }
+
+  .health-bar-fill {
+    @apply h-full rounded-full transition-all duration-500;
+  }
+
+  .health-bar-fill.high {
+    @apply bg-gradient-health;
+  }
+
+  .health-bar-fill.medium {
+    @apply bg-solar-amber;
+  }
+
+  .health-bar-fill.low {
+    @apply bg-gradient-danger;
+  }
+
+  /* ============================================
+     Orbit Ring
+     ============================================ */
+  .orbit-ring {
+    @apply absolute rounded-full border border-white/5;
+    @apply pointer-events-none;
+  }
+
+  .orbit-ring.interactive {
+    @apply pointer-events-auto;
+  }
+
+  /* ============================================
+     Timeline
+     ============================================ */
+  .timeline-line {
+    @apply absolute left-1/2 w-0.5 bg-gradient-to-b from-neon-violet/50 to-transparent;
+    transform: translateX(-50%);
+  }
+
+  .timeline-marker {
+    @apply w-3 h-3 rounded-full bg-neon-violet;
+    @apply shadow-neon-violet;
+  }
+
+  /* ============================================
+     Sticky Glass Headers
+     ============================================ */
+  .sticky-glass {
+    @apply sticky top-0 z-10;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* ============================================
+     Draft Card States
+     ============================================ */
+  .draft-card {
+    @apply glass-card-hover rounded-2xl p-6;
+    @apply transform transition-all duration-300;
+  }
+
+  .draft-card:hover {
+    @apply scale-[1.02];
+  }
+
+  .draft-card.selected {
+    @apply border-neon-violet/50;
+    box-shadow: 0 0 30px rgba(167, 139, 250, 0.2);
+  }
+
+  /* ============================================
+     Glitch Effect
+     ============================================ */
+  .glitch-hover:hover {
+    animation: glitch 0.3s ease-in-out;
+  }
+
+  /* ============================================
+     Glow Text
+     ============================================ */
+  .text-glow {
+    text-shadow: 0 0 20px rgba(167, 139, 250, 0.5);
+  }
+
+  .text-glow-emerald {
+    text-shadow: 0 0 20px rgba(52, 211, 153, 0.5);
+  }
+
+  .text-glow-rose {
+    text-shadow: 0 0 20px rgba(251, 113, 133, 0.5);
+  }
+}
+
+/* Utility Layer */
+@layer utilities {
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-neon-violet to-cyber-emerald;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Smooth page transitions */
+  .page-enter {
+    animation: fade-in 0.5s ease-out, slide-up 0.5s ease-out;
+  }
+}
