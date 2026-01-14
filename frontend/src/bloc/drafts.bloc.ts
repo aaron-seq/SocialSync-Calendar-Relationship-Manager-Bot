@@ -5,69 +5,24 @@
  * - Draft generation workflow
  * - Approval/rejection actions
  * - Automation policy evaluation
+ * - CRUD operations with localStorage fallback
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import * as storageService from '@/services/storage.service';
 import { logger, startTimer } from '@/lib/logger';
-import type { Draft, DraftWithContext, AutoPolicy, AutomationOverride, SignificanceLevel } from '@/types';
-
-// =============================================================================
-// DEMO DATA
-// =============================================================================
-
-const DEMO_DRAFTS: DraftWithContext[] = [
-  {
-    id: '1',
-    contactId: '1',
-    eventId: 'evt-1',
-    generatedContent: "Happy Birthday, Riya! Hope your special day is filled with all the joy and happiness you bring to everyone around you. Here's to another amazing year of adventures and achievements!",
-    aiRationale: "Selected warm, emoji-rich tone based on high intimacy level (9) and past interaction patterns showing frequent use of emojis.",
-    status: 'WAITING_FOR_REVIEW',
-    scheduledSendTime: '2026-01-15T09:00:00Z',
-    userEdited: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Riya Sharma',
-    eventType: 'BIRTHDAY',
-    eventName: "Riya's Birthday",
-    healthScore: 85,
-  },
-  {
-    id: '2',
-    contactId: '2',
-    eventId: 'evt-4',
-    generatedContent: "Congratulations on your well-deserved promotion to VP, Michael! Your dedication and leadership have truly paid off. Excited to see what you'll accomplish in this new role.",
-    aiRationale: "Used professional tone due to WORK relation type. Avoided emojis per user preferences for work contacts.",
-    status: 'WAITING_FOR_REVIEW',
-    scheduledSendTime: '2026-01-22T10:00:00Z',
-    userEdited: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Michael Chen',
-    eventType: 'PROMOTION',
-    eventName: 'VP Promotion',
-    healthScore: 35,
-  },
-  {
-    id: '3',
-    contactId: '3',
-    eventId: 'evt-2',
-    generatedContent: "Happy Anniversary to my favorite person! Every day with you is a gift. Can't wait for many more years of love and laughter together.",
-    aiRationale: "Maximum warmth applied for PARTNER relation with intimacy level 10. Personal tone with romantic undertones.",
-    status: 'APPROVED_WAITING',
-    scheduledSendTime: '2026-01-18T08:00:00Z',
-    userEdited: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Sarah Johnson',
-    eventType: 'ANNIVERSARY',
-    healthScore: 72,
-  },
-];
+import type { Draft, DraftWithContext, AutoPolicy, AutomationOverride, SignificanceLevel, Contact } from '@/types';
 
 // =============================================================================
 // AUTOMATION POLICY LOGIC
 // =============================================================================
+
+/**
+ * Determine if Supabase is configured.
+ */
+function isSupabaseConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_SUPABASE_URL);
+}
 
 /**
  * Determine message status based on hierarchical automation policy.
@@ -151,6 +106,23 @@ export function sortByScheduledTime(drafts: DraftWithContext[]): DraftWithContex
   });
 }
 
+/**
+ * Enrich drafts with contact and event information.
+ */
+export function enrichDraftsWithContext(drafts: Draft[], contacts: Contact[]): DraftWithContext[] {
+  const contactMap = new Map(contacts.map(c => [c.id, c]));
+  
+  return drafts.map(draft => {
+    const contact = contactMap.get(draft.contactId);
+    return {
+      ...draft,
+      contactName: contact?.fullName || 'Unknown Contact',
+      eventType: 'CUSTOM' as const, // Would be fetched from event
+      healthScore: contact?.healthScore || 50,
+    };
+  });
+}
+
 // =============================================================================
 // REACT HOOKS
 // =============================================================================
@@ -163,6 +135,7 @@ interface DraftsState {
 
 /**
  * Hook for managing drafts list and actions.
+ * Uses localStorage when Supabase is not configured.
  */
 export function useDrafts() {
   const [state, setState] = useState<DraftsState>({
@@ -177,9 +150,24 @@ export function useDrafts() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      logger.info('Using demo drafts');
+      if (!isSupabaseConfigured()) {
+        // Local mode: use localStorage
+        logger.info('Using localStorage for drafts (Supabase not configured)');
+        const drafts = storageService.loadDrafts();
+        const contacts = storageService.loadContacts();
+        const enrichedDrafts = enrichDraftsWithContext(drafts, contacts);
+        
+        setState({
+          drafts: enrichedDrafts,
+          isLoading: false,
+          error: null,
+        });
+        return;
+      }
+      
+      // Supabase mode would go here
       setState({
-        drafts: DEMO_DRAFTS,
+        drafts: [],
         isLoading: false,
         error: null,
       });
@@ -203,6 +191,10 @@ export function useDrafts() {
   const approve = useCallback(async (id: string) => {
     logger.info('Approving draft', { draftId: id });
     
+    if (!isSupabaseConfigured()) {
+      storageService.updateDraft(id, { status: 'APPROVED_WAITING' });
+    }
+    
     setState(prev => ({
       ...prev,
       drafts: prev.drafts.map(d =>
@@ -214,6 +206,10 @@ export function useDrafts() {
   const reject = useCallback(async (id: string) => {
     logger.info('Rejecting draft', { draftId: id });
     
+    if (!isSupabaseConfigured()) {
+      storageService.updateDraft(id, { status: 'CANCELLED' });
+    }
+    
     setState(prev => ({
       ...prev,
       drafts: prev.drafts.map(d =>
@@ -224,6 +220,10 @@ export function useDrafts() {
   
   const edit = useCallback(async (id: string, content: string) => {
     logger.info('Editing draft', { draftId: id });
+    
+    if (!isSupabaseConfigured()) {
+      storageService.updateDraft(id, { editedContent: content, userEdited: true });
+    }
     
     setState(prev => ({
       ...prev,

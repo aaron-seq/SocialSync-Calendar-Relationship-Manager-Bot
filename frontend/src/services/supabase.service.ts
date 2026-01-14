@@ -14,7 +14,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-import type { Contact, Event, Draft, InteractionLog, Result, ApiError } from '@/types';
+import type { Contact, Event, Draft, Result } from '@/types';
 
 // =============================================================================
 // CONFIGURATION

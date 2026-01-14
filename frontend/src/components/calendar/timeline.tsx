@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { format, isToday, isTomorrow, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
+import { format, isToday, isTomorrow } from 'date-fns'
 import { GlassCard } from '@/components/ui/glass-card'
 import { cn } from '@/lib/utils'
 import { Gift, Heart, Briefcase, GraduationCap, Home, Baby, Star, Calendar as CalendarIcon } from 'lucide-react'

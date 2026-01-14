@@ -6,113 +6,24 @@
  * - Grouping events by date
  * - Calculating days until event
  * - Determining automation policy
+ * - CRUD operations with localStorage fallback
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import * as storageService from '@/services/storage.service';
 import { logger, startTimer } from '@/lib/logger';
-import type { Event, EventWithContact, SignificanceLevel } from '@/types';
-
-// =============================================================================
-// DEMO DATA
-// =============================================================================
-
-const DEMO_EVENTS: EventWithContact[] = [
-  { 
-    id: '1', 
-    contactId: '1', 
-    eventType: 'BIRTHDAY', 
-    eventDate: '2026-01-15', 
-    significanceLevel: 'MEDIUM',
-    automationOverride: 'USE_CONTACT_DEFAULT',
-    recurrenceRule: 'YEARLY',
-    reminderDaysBefore: [1, 7],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Riya Sharma',
-    contactHealthScore: 85,
-    contactAutoPolicy: 'AUTO_SEND_LOW_RISK',
-  },
-  { 
-    id: '2', 
-    contactId: '3', 
-    eventType: 'ANNIVERSARY', 
-    eventDate: '2026-01-18', 
-    significanceLevel: 'HIGH',
-    automationOverride: 'USE_CONTACT_DEFAULT',
-    recurrenceRule: 'YEARLY',
-    reminderDaysBefore: [1, 7],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Sarah Johnson',
-    contactHealthScore: 72,
-    contactAutoPolicy: 'ALWAYS_AUTO_SEND',
-  },
-  { 
-    id: '3', 
-    contactId: '5', 
-    eventType: 'BIRTHDAY', 
-    eventDate: '2026-01-20', 
-    significanceLevel: 'MEDIUM',
-    automationOverride: 'USE_CONTACT_DEFAULT',
-    recurrenceRule: 'YEARLY',
-    reminderDaysBefore: [1, 7],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Emma Davis',
-    contactHealthScore: 90,
-    contactAutoPolicy: 'AUTO_SEND_LOW_RISK',
-  },
-  { 
-    id: '4', 
-    contactId: '2', 
-    eventType: 'PROMOTION', 
-    eventName: 'VP Promotion',
-    eventDate: '2026-01-22', 
-    significanceLevel: 'HIGH',
-    automationOverride: 'FORCE_REVIEW',
-    recurrenceRule: 'ONCE',
-    reminderDaysBefore: [1, 3],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'Michael Chen',
-    contactHealthScore: 35,
-    contactAutoPolicy: 'ALWAYS_REVIEW',
-  },
-  { 
-    id: '5', 
-    contactId: '4', 
-    eventType: 'BIRTHDAY', 
-    eventDate: '2026-02-05', 
-    significanceLevel: 'LOW',
-    automationOverride: 'USE_CONTACT_DEFAULT',
-    recurrenceRule: 'YEARLY',
-    reminderDaysBefore: [1, 7],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'David Williams',
-    contactHealthScore: 45,
-    contactAutoPolicy: 'ALWAYS_REVIEW',
-  },
-  { 
-    id: '6', 
-    contactId: '6', 
-    eventType: 'NEW_JOB', 
-    eventDate: '2026-02-10', 
-    significanceLevel: 'MEDIUM',
-    automationOverride: 'USE_CONTACT_DEFAULT',
-    recurrenceRule: 'ONCE',
-    reminderDaysBefore: [1],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    contactName: 'James Wilson',
-    contactHealthScore: 28,
-    contactAutoPolicy: 'ALWAYS_REVIEW',
-  },
-];
+import type { Event, EventWithContact, SignificanceLevel, Contact } from '@/types';
 
 // =============================================================================
 // BUSINESS LOGIC
 // =============================================================================
+
+/**
+ * Determine if Supabase is configured.
+ */
+function isSupabaseConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_SUPABASE_URL);
+}
 
 /**
  * Calculate days until an event from today.
@@ -180,6 +91,26 @@ export function countByEventType(events: EventWithContact[]): Record<string, num
   }, {} as Record<string, number>);
 }
 
+/**
+ * Enrich events with contact information.
+ * Joins events with contacts to create EventWithContact objects.
+ */
+export function enrichEventsWithContacts(events: Event[], contacts: Contact[]): EventWithContact[] {
+  const contactMap = new Map(contacts.map(c => [c.id, c]));
+  
+  return events.map(event => {
+    const contact = contactMap.get(event.contactId);
+    return {
+      ...event,
+      contactName: contact?.fullName || 'Unknown Contact',
+      contactNickname: contact?.nickname,
+      contactAvatar: contact?.avatarUrl,
+      contactHealthScore: contact?.healthScore || 50,
+      contactAutoPolicy: contact?.defaultAutoPolicy || 'ALWAYS_REVIEW',
+    };
+  }).sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+}
+
 // =============================================================================
 // REACT HOOKS
 // =============================================================================
@@ -192,6 +123,12 @@ interface EventsState {
 
 /**
  * Hook for fetching and managing events.
+ * Uses localStorage when Supabase is not configured.
+ * 
+ * Usage:
+ * ```typescript
+ * const { events, isLoading, error, addEvent, updateEvent, deleteEvent, refetch } = useEvents();
+ * ```
  */
 export function useEvents() {
   const [state, setState] = useState<EventsState>({
@@ -206,10 +143,25 @@ export function useEvents() {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      // Demo mode for now
-      logger.info('Using demo events');
+      if (!isSupabaseConfigured()) {
+        // Local mode: use localStorage
+        logger.info('Using localStorage for events (Supabase not configured)');
+        const events = storageService.loadEvents();
+        const contacts = storageService.loadContacts();
+        const enrichedEvents = enrichEventsWithContacts(events, contacts);
+        
+        setState({
+          events: enrichedEvents,
+          isLoading: false,
+          error: null,
+        });
+        return;
+      }
+      
+      // Supabase mode would go here
+      logger.info('Supabase events not yet implemented');
       setState({
-        events: DEMO_EVENTS,
+        events: [],
         isLoading: false,
         error: null,
       });
@@ -230,9 +182,66 @@ export function useEvents() {
     fetchData();
   }, [fetchData]);
   
+  const addEvent = useCallback((eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const newEvent = storageService.addEvent(eventData);
+        // Refetch to get enriched data
+        fetchData();
+        return newEvent;
+      }
+      fetchData();
+      return null;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to add event', { error: error.message });
+      throw error;
+    }
+  }, [fetchData]);
+  
+  const updateEvent = useCallback((id: string, updates: Partial<Event>) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const updatedEvent = storageService.updateEvent(id, updates);
+        fetchData();
+        return updatedEvent;
+      }
+      fetchData();
+      return null;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to update event', { error: error.message, eventId: id });
+      throw error;
+    }
+  }, [fetchData]);
+  
+  const deleteEvent = useCallback((id: string) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const success = storageService.deleteEvent(id);
+        if (success) {
+          setState(prev => ({
+            ...prev,
+            events: prev.events.filter(e => e.id !== id),
+          }));
+        }
+        return success;
+      }
+      fetchData();
+      return true;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to delete event', { error: error.message, eventId: id });
+      throw error;
+    }
+  }, [fetchData]);
+  
   return {
     ...state,
     refetch: fetchData,
+    addEvent,
+    updateEvent,
+    deleteEvent,
   };
 }
 

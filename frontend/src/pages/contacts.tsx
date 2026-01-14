@@ -1,7 +1,23 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { GlassCard, ClickableGlassCard } from '@/components/ui/glass-card'
-import { cn, getHealthColor, getAutomationPolicyStyle } from '@/lib/utils'
+/**
+ * Contacts Page
+ * 
+ * Displays the user's contact list with search, filter, and CRUD functionality.
+ * Uses the contacts BLoC for data management and the ContactForm for add/edit.
+ * 
+ * Why this design:
+ * - Separates presentation from business logic (BLoC pattern)
+ * - Provides real data entry instead of demo data
+ * - All buttons are wired up and functional
+ */
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { GlassCard, ClickableGlassCard } from '@/components/ui/glass-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ContactForm } from '@/components/forms/contact-form';
+import { ToastContainer, useToasts } from '@/components/ui/toast';
+import { cn, getHealthColor, getAutomationPolicyStyle } from '@/lib/utils';
+import { useContacts, useSelectedContact } from '@/bloc/contacts.bloc';
 import { 
   Users, 
   Plus, 
@@ -12,73 +28,11 @@ import {
   Instagram,
   MoreHorizontal,
   TrendingUp,
-  TrendingDown
-} from 'lucide-react'
-
-// Demo contacts
-const demoContacts = [
-  { 
-    id: '1', 
-    fullName: 'Riya Sharma', 
-    nickname: 'Riya', 
-    relationType: 'FRIEND',
-    intimacyLevel: 9,
-    healthScore: 85, 
-    phone: '+1 555-0101',
-    email: 'riya@example.com',
-    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
-  },
-  { 
-    id: '2', 
-    fullName: 'Michael Chen', 
-    nickname: 'Mike', 
-    relationType: 'WORK',
-    intimacyLevel: 6,
-    healthScore: 35, 
-    phone: '+1 555-0102',
-    email: 'mike@company.com',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-  },
-  { 
-    id: '3', 
-    fullName: 'Sarah Johnson', 
-    relationType: 'PARTNER',
-    intimacyLevel: 10,
-    healthScore: 72, 
-    phone: '+1 555-0103',
-    email: 'sarah@example.com',
-    instagram: '@sarah_j',
-    defaultAutoPolicy: 'ALWAYS_AUTO_SEND',
-  },
-  { 
-    id: '4', 
-    fullName: 'David Williams', 
-    relationType: 'NETWORK',
-    intimacyLevel: 4,
-    healthScore: 45, 
-    email: 'david.w@business.com',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-  },
-  { 
-    id: '5', 
-    fullName: 'Emma Davis', 
-    nickname: 'Em',
-    relationType: 'FAMILY',
-    intimacyLevel: 8,
-    healthScore: 90, 
-    phone: '+1 555-0105',
-    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
-  },
-  { 
-    id: '6', 
-    fullName: 'James Wilson', 
-    relationType: 'WORK',
-    intimacyLevel: 3,
-    healthScore: 28, 
-    email: 'james.wilson@corp.com',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-  },
-]
+  TrendingDown,
+  Trash2,
+  Edit
+} from 'lucide-react';
+import type { Contact } from '@/types';
 
 const relationTypeColors: Record<string, string> = {
   FAMILY: 'bg-toxic-rose/20 text-toxic-rose',
@@ -86,19 +40,73 @@ const relationTypeColors: Record<string, string> = {
   FRIEND: 'bg-cyber-emerald/20 text-cyber-emerald',
   WORK: 'bg-solar-amber/20 text-solar-amber',
   NETWORK: 'bg-neon-violet/20 text-neon-violet',
-}
+};
 
 export function Contacts() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedContact, setSelectedContact] = useState<typeof demoContacts[0] | null>(null)
+  const { contacts, isLoading, addContact, updateContact, deleteContact } = useContacts();
+  const { selectedContact, select, clear } = useSelectedContact();
+  const { toasts, addToast, dismissToast } = useToasts();
   
-  const filteredContacts = demoContacts.filter(contact =>
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | undefined>(undefined);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  
+  // Filter contacts by search query
+  const filteredContacts = contacts.filter(contact =>
     contact.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     contact.nickname?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
+  
+  const handleAddContact = () => {
+    setEditingContact(undefined);
+    setIsFormOpen(true);
+  };
+  
+  const handleEditContact = (contact: Contact) => {
+    setEditingContact(contact);
+    setIsFormOpen(true);
+  };
+  
+  const handleFormSubmit = (contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (editingContact) {
+      updateContact(editingContact.id, contactData);
+      addToast({ type: 'success', message: 'Contact updated successfully' });
+      // Update selected contact if it was edited
+      if (selectedContact?.id === editingContact.id) {
+        select({ ...selectedContact, ...contactData } as Contact);
+      }
+    } else {
+      addContact(contactData);
+      addToast({ type: 'success', message: 'Contact added successfully' });
+    }
+  };
+  
+  const handleDeleteContact = (id: string) => {
+    deleteContact(id);
+    addToast({ type: 'success', message: 'Contact deleted' });
+    setShowDeleteConfirm(null);
+    if (selectedContact?.id === id) {
+      clear();
+    }
+  };
+  
+  const handleContactClick = (contact: Contact) => {
+    select(contact as Contact);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-moon-dust">Loading contacts...</div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -106,10 +114,10 @@ export function Contacts() {
             <Users className="w-6 h-6 text-neon-violet" />
             Contacts
           </h1>
-          <p className="text-moon-dust mt-1">{demoContacts.length} people in your network</p>
+          <p className="text-moon-dust mt-1">{contacts.length} people in your network</p>
         </div>
         
-        <button className="btn-neon-solid flex items-center gap-2">
+        <button className="btn-neon-solid flex items-center gap-2" onClick={handleAddContact}>
           <Plus className="w-4 h-4" />
           Add Contact
         </button>
@@ -137,9 +145,26 @@ export function Contacts() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contact List - 2 columns */}
         <div className="lg:col-span-2 space-y-3">
+          {filteredContacts.length === 0 && contacts.length === 0 && (
+            <EmptyState
+              icon={Users}
+              title="No contacts yet"
+              description="Add your first contact to start managing your relationships"
+              action={{ label: 'Add Contact', onClick: handleAddContact }}
+            />
+          )}
+          
+          {filteredContacts.length === 0 && contacts.length > 0 && (
+            <GlassCard className="p-12 text-center">
+              <Users className="w-12 h-12 text-moon-dust/50 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-moon-dust">No contacts found</h3>
+              <p className="text-sm text-moon-dust/70 mt-1">Try a different search term</p>
+            </GlassCard>
+          )}
+          
           {filteredContacts.map((contact, index) => {
-            const policyStyle = getAutomationPolicyStyle(contact.defaultAutoPolicy)
-            const healthColor = getHealthColor(contact.healthScore)
+            const policyStyle = getAutomationPolicyStyle(contact.defaultAutoPolicy);
+            const healthColor = getHealthColor(contact.healthScore);
             
             return (
               <motion.div
@@ -153,7 +178,7 @@ export function Contacts() {
                     'p-4',
                     selectedContact?.id === contact.id && 'border-neon-violet/50'
                   )}
-                  onClick={() => setSelectedContact(contact)}
+                  onClick={() => handleContactClick(contact)}
                 >
                   <div className="flex items-center gap-4">
                     {/* Avatar */}
@@ -211,22 +236,52 @@ export function Contacts() {
                     </div>
                     
                     {/* More Button */}
-                    <button className="p-2 rounded-lg hover:bg-white/5 transition-colors">
-                      <MoreHorizontal className="w-4 h-4 text-moon-dust" />
-                    </button>
+                    <div className="relative">
+                      <button 
+                        className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDeleteConfirm(showDeleteConfirm === contact.id ? null : contact.id);
+                        }}
+                      >
+                        <MoreHorizontal className="w-4 h-4 text-moon-dust" />
+                      </button>
+                      
+                      {showDeleteConfirm === contact.id && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="absolute right-0 top-full mt-1 z-10 glass-card rounded-xl p-2 min-w-32"
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditContact(contact);
+                              setShowDeleteConfirm(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-starlight hover:bg-white/5 rounded-lg transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteContact(contact.id);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-toxic-rose hover:bg-toxic-rose/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
                 </ClickableGlassCard>
               </motion.div>
-            )
+            );
           })}
-          
-          {filteredContacts.length === 0 && (
-            <GlassCard className="p-12 text-center">
-              <Users className="w-12 h-12 text-moon-dust/50 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-moon-dust">No contacts found</h3>
-              <p className="text-sm text-moon-dust/70 mt-1">Try a different search term</p>
-            </GlassCard>
-          )}
         </div>
         
         {/* Sidebar - Contact Details */}
@@ -279,10 +334,10 @@ export function Contacts() {
                     Contact Info
                   </h4>
                   
-                  {selectedContact.phone && (
+                  {selectedContact.phoneNumber && (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-void-slate/30">
                       <Phone className="w-4 h-4 text-neon-violet" />
-                      <span className="text-sm text-starlight">{selectedContact.phone}</span>
+                      <span className="text-sm text-starlight">{selectedContact.phoneNumber}</span>
                     </div>
                   )}
                   
@@ -293,11 +348,15 @@ export function Contacts() {
                     </div>
                   )}
                   
-                  {selectedContact.instagram && (
+                  {selectedContact.instagramHandle && (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-void-slate/30">
                       <Instagram className="w-4 h-4 text-neon-violet" />
-                      <span className="text-sm text-starlight">{selectedContact.instagram}</span>
+                      <span className="text-sm text-starlight">{selectedContact.instagramHandle}</span>
                     </div>
+                  )}
+                  
+                  {!selectedContact.phoneNumber && !selectedContact.email && !selectedContact.instagramHandle && (
+                    <p className="text-sm text-moon-dust/50 text-center py-2">No contact info added</p>
                   )}
                 </div>
                 
@@ -306,7 +365,10 @@ export function Contacts() {
                   <button className="w-full btn-neon-solid">
                     Send Message
                   </button>
-                  <button className="w-full btn-neon">
+                  <button 
+                    className="w-full btn-neon"
+                    onClick={() => handleEditContact(selectedContact)}
+                  >
                     Edit Contact
                   </button>
                 </div>
@@ -320,6 +382,17 @@ export function Contacts() {
           )}
         </div>
       </div>
+      
+      {/* Contact Form Modal */}
+      <ContactForm
+        isOpen={isFormOpen}
+        onClose={() => {
+          setIsFormOpen(false);
+          setEditingContact(undefined);
+        }}
+        onSubmit={handleFormSubmit}
+        editContact={editingContact}
+      />
     </div>
-  )
+  );
 }

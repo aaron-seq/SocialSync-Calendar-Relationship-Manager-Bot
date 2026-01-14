@@ -6,6 +6,7 @@
  * - State management
  * - Validation rules
  * - Computed values (health metrics, etc.)
+ * - CRUD operations with localStorage fallback
  * 
  * Why BLoC pattern:
  * - Separates business logic from UI components
@@ -16,96 +17,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as supabaseService from '@/services/supabase.service';
+import * as storageService from '@/services/storage.service';
 import { logger, startTimer } from '@/lib/logger';
-import type { Contact, ContactWithMetrics, Result } from '@/types';
-
-// =============================================================================
-// DEMO DATA - Used when Supabase is not configured
-// =============================================================================
-
-const DEMO_CONTACTS: Contact[] = [
-  { 
-    id: '1', 
-    userId: 'demo',
-    fullName: 'Riya Sharma', 
-    nickname: 'Riya', 
-    healthScore: 85, 
-    intimacyLevel: 9, 
-    relationType: 'FRIEND',
-    defaultChannel: 'WHATSAPP',
-    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
-    ghostingRiskScore: 0.1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: '2', 
-    userId: 'demo',
-    fullName: 'Michael Chen', 
-    nickname: 'Mike', 
-    healthScore: 35, 
-    intimacyLevel: 6, 
-    relationType: 'WORK',
-    defaultChannel: 'EMAIL',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-    ghostingRiskScore: 0.7,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: '3', 
-    userId: 'demo',
-    fullName: 'Sarah Johnson', 
-    healthScore: 72, 
-    intimacyLevel: 10, 
-    relationType: 'PARTNER',
-    defaultChannel: 'WHATSAPP',
-    defaultAutoPolicy: 'ALWAYS_AUTO_SEND',
-    ghostingRiskScore: 0.2,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: '4', 
-    userId: 'demo',
-    fullName: 'David Williams', 
-    healthScore: 45, 
-    intimacyLevel: 4, 
-    relationType: 'NETWORK',
-    defaultChannel: 'EMAIL',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-    ghostingRiskScore: 0.5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: '5', 
-    userId: 'demo',
-    fullName: 'Emma Davis', 
-    nickname: 'Em',
-    healthScore: 90, 
-    intimacyLevel: 8, 
-    relationType: 'FAMILY',
-    defaultChannel: 'WHATSAPP',
-    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
-    ghostingRiskScore: 0.05,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: '6', 
-    userId: 'demo',
-    fullName: 'James Wilson', 
-    healthScore: 28, 
-    intimacyLevel: 3, 
-    relationType: 'WORK',
-    defaultChannel: 'EMAIL',
-    defaultAutoPolicy: 'ALWAYS_REVIEW',
-    ghostingRiskScore: 0.8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+import type { Contact, ContactWithMetrics } from '@/types';
 
 // =============================================================================
 // STATE TYPES
@@ -211,11 +125,12 @@ export function sortContacts(
 
 /**
  * Hook for fetching and managing contacts list.
- * Handles loading state, errors, and auto-refresh.
+ * Handles loading state, errors, CRUD operations, and auto-refresh.
+ * Uses localStorage when Supabase is not configured.
  * 
  * Usage:
  * ```typescript
- * const { contacts, isLoading, error, refetch } = useContacts();
+ * const { contacts, isLoading, error, addContact, updateContact, deleteContact, refetch } = useContacts();
  * ```
  */
 export function useContacts() {
@@ -232,10 +147,11 @@ export function useContacts() {
     
     try {
       if (!isSupabaseConfigured()) {
-        // Demo mode: use hardcoded data
-        logger.info('Using demo contacts (Supabase not configured)');
+        // Local mode: use localStorage
+        logger.info('Using localStorage for contacts (Supabase not configured)');
+        const contacts = storageService.loadContacts();
         setState({
-          contacts: DEMO_CONTACTS,
+          contacts,
           isLoading: false,
           error: null,
         });
@@ -274,9 +190,75 @@ export function useContacts() {
     fetchData();
   }, [fetchData]);
   
+  const addContact = useCallback((contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const newContact = storageService.addContact(contactData);
+        setState(prev => ({
+          ...prev,
+          contacts: [...prev.contacts, newContact],
+        }));
+        return newContact;
+      }
+      // For Supabase mode, refetch after API call
+      // (API call would be made in the calling code)
+      fetchData();
+      return null;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to add contact', { error: error.message });
+      throw error;
+    }
+  }, [fetchData]);
+  
+  const updateContact = useCallback((id: string, updates: Partial<Contact>) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const updatedContact = storageService.updateContact(id, updates);
+        if (updatedContact) {
+          setState(prev => ({
+            ...prev,
+            contacts: prev.contacts.map(c => c.id === id ? updatedContact : c),
+          }));
+        }
+        return updatedContact;
+      }
+      fetchData();
+      return null;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to update contact', { error: error.message, contactId: id });
+      throw error;
+    }
+  }, [fetchData]);
+  
+  const deleteContact = useCallback((id: string) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const success = storageService.deleteContact(id);
+        if (success) {
+          setState(prev => ({
+            ...prev,
+            contacts: prev.contacts.filter(c => c.id !== id),
+          }));
+        }
+        return success;
+      }
+      fetchData();
+      return true;
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to delete contact', { error: error.message, contactId: id });
+      throw error;
+    }
+  }, [fetchData]);
+  
   return {
     ...state,
     refetch: fetchData,
+    addContact,
+    updateContact,
+    deleteContact,
   };
 }
 
@@ -302,3 +284,4 @@ export function useSelectedContact() {
     clear,
   };
 }
+

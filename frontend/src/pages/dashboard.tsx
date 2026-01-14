@@ -1,8 +1,25 @@
-import { useState } from 'react'
-import { OrbitView } from '@/components/orbit-view/orbit-view'
-import { GlassCard } from '@/components/ui/glass-card'
-import { cn, getHealthColor, formatRelativeTime, getAutomationPolicyStyle } from '@/lib/utils'
-import { motion } from 'framer-motion'
+/**
+ * Dashboard Page
+ * 
+ * Main overview page showing key metrics and relationship orbit.
+ * Uses BLoC hooks for real data instead of demo data.
+ * 
+ * Why this design:
+ * - Provides quick overview of relationship health
+ * - Highlights urgent items (needing attention, pending reviews)
+ * - Visual orbit representation of contact proximity
+ */
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { OrbitView } from '@/components/orbit-view/orbit-view';
+import { GlassCard } from '@/components/ui/glass-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { cn, getHealthColor } from '@/lib/utils';
+import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bloc/contacts.bloc';
+import { useEvents, calculateDaysUntil } from '@/bloc/events.bloc';
+import { useDrafts } from '@/bloc/drafts.bloc';
+import { motion } from 'framer-motion';
 import { 
   AlertTriangle, 
   Calendar, 
@@ -11,32 +28,38 @@ import {
   Users,
   ChevronRight,
   Gift,
-  Heart
-} from 'lucide-react'
-
-// Demo data
-const demoContacts = [
-  { id: '1', fullName: 'Riya Sharma', nickname: 'Riya', healthScore: 85, intimacyLevel: 9, relationType: 'FRIEND' },
-  { id: '2', fullName: 'Michael Chen', nickname: 'Mike', healthScore: 35, intimacyLevel: 6, relationType: 'WORK' },
-  { id: '3', fullName: 'Sarah Johnson', healthScore: 72, intimacyLevel: 10, relationType: 'PARTNER' },
-  { id: '4', fullName: 'David Williams', healthScore: 45, intimacyLevel: 4, relationType: 'NETWORK' },
-  { id: '5', fullName: 'Emma Davis', healthScore: 90, intimacyLevel: 8, relationType: 'FAMILY' },
-  { id: '6', fullName: 'James Wilson', healthScore: 28, intimacyLevel: 3, relationType: 'WORK' },
-]
-
-const upcomingEvents = [
-  { id: '1', contactName: 'Riya Sharma', eventType: 'BIRTHDAY', date: '2026-01-15', daysUntil: 2 },
-  { id: '2', contactName: 'Sarah Johnson', eventType: 'ANNIVERSARY', date: '2026-01-18', daysUntil: 5 },
-  { id: '3', contactName: 'Emma Davis', eventType: 'BIRTHDAY', date: '2026-01-20', daysUntil: 7 },
-]
+  Heart,
+  Plus
+} from 'lucide-react';
+import type { Contact } from '@/types';
 
 export function Dashboard() {
-  const [selectedContact, setSelectedContact] = useState<typeof demoContacts[0] | null>(null)
+  const navigate = useNavigate();
+  const { contacts, isLoading: contactsLoading } = useContacts();
+  const { events, isLoading: eventsLoading } = useEvents();
+  const { drafts } = useDrafts();
   
-  // Calculate stats
-  const criticalContacts = demoContacts.filter(c => c.healthScore < 40).length
-  const pendingMessages = 3 // Demo value
-  const averageHealth = Math.round(demoContacts.reduce((sum, c) => sum + c.healthScore, 0) / demoContacts.length)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  
+  // Calculate stats from real data
+  const criticalContacts = countCriticalContacts(contacts);
+  const pendingMessages = drafts.filter(d => d.status === 'WAITING_FOR_REVIEW').length;
+  const averageHealth = calculateAverageHealth(contacts);
+  
+  // Get upcoming events (next 30 days)
+  const upcomingEvents = events
+    .filter(e => calculateDaysUntil(e.eventDate) >= 0 && calculateDaysUntil(e.eventDate) <= 30)
+    .slice(0, 5);
+  
+  const isLoading = contactsLoading || eventsLoading;
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-moon-dust">Loading dashboard...</div>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -45,29 +68,32 @@ export function Dashboard() {
         <StatCard
           icon={Users}
           label="Total Contacts"
-          value={demoContacts.length}
-          trend="+2 this month"
+          value={contacts.length}
+          trend={contacts.length > 0 ? `${contacts.length} in network` : 'Add contacts to start'}
           color="violet"
+          onClick={() => navigate('/contacts')}
         />
         <StatCard
           icon={AlertTriangle}
           label="Need Attention"
           value={criticalContacts}
-          trend="Action required"
+          trend={criticalContacts > 0 ? 'Action required' : 'All relationships healthy'}
           color="rose"
+          onClick={() => navigate('/contacts')}
         />
         <StatCard
           icon={MessageSquare}
           label="Pending Review"
           value={pendingMessages}
-          trend="3 drafts ready"
+          trend={pendingMessages > 0 ? `${pendingMessages} drafts ready` : 'No pending drafts'}
           color="amber"
+          onClick={() => navigate('/review')}
         />
         <StatCard
           icon={TrendingUp}
           label="Avg Health Score"
-          value={`${averageHealth}%`}
-          trend="+5% from last week"
+          value={contacts.length > 0 ? `${averageHealth}%` : 'N/A'}
+          trend={contacts.length > 0 ? 'Across all contacts' : 'Add contacts to track'}
           color="emerald"
         />
       </div>
@@ -79,12 +105,25 @@ export function Dashboard() {
           <GlassCard className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-display font-bold text-starlight">Relationship Orbit</h2>
-              <span className="text-sm text-moon-dust">{demoContacts.length} contacts</span>
+              <span className="text-sm text-moon-dust">{contacts.length} contacts</span>
             </div>
-            <OrbitView 
-              contacts={demoContacts}
-              onContactClick={(contact) => setSelectedContact(contact)}
-            />
+            
+            {contacts.length > 0 ? (
+              <OrbitView 
+                contacts={contacts}
+                onContactClick={(contact) => setSelectedContact(contact as Contact)}
+              />
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="No contacts yet"
+                description="Add contacts to see your relationship orbit"
+                action={{ 
+                  label: 'Add Contact', 
+                  onClick: () => navigate('/contacts') 
+                }}
+              />
+            )}
           </GlassCard>
         </div>
         
@@ -97,34 +136,57 @@ export function Dashboard() {
                 <Calendar className="w-4 h-4 text-neon-violet" />
                 Upcoming
               </h3>
-              <a href="/calendar" className="text-sm text-neon-violet hover:underline">View all</a>
+              <button 
+                onClick={() => navigate('/calendar')}
+                className="text-sm text-neon-violet hover:underline"
+              >
+                View all
+              </button>
             </div>
             
-            <div className="space-y-3">
-              {upcomingEvents.map((event) => (
-                <motion.div
-                  key={event.id}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-void-slate/30 hover:bg-void-slate/50 transition-colors cursor-pointer"
-                  whileHover={{ x: 4 }}
+            {upcomingEvents.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingEvents.map((event) => {
+                  const daysUntil = calculateDaysUntil(event.eventDate);
+                  return (
+                    <motion.div
+                      key={event.id}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-void-slate/30 hover:bg-void-slate/50 transition-colors cursor-pointer"
+                      whileHover={{ x: 4 }}
+                      onClick={() => navigate('/calendar')}
+                    >
+                      <div className={cn(
+                        'w-10 h-10 rounded-xl flex items-center justify-center',
+                        event.eventType === 'BIRTHDAY' 
+                          ? 'bg-solar-amber/20 text-solar-amber'
+                          : 'bg-toxic-rose/20 text-toxic-rose'
+                      )}>
+                        {event.eventType === 'BIRTHDAY' ? <Gift className="w-5 h-5" /> : <Heart className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-starlight truncate">{event.contactName}</p>
+                        <p className="text-xs text-moon-dust">{event.eventType}</p>
+                      </div>
+                      <span className="text-xs text-neon-violet font-medium">
+                        {daysUntil === 0 ? 'Today' : daysUntil === 1 ? '1d' : `${daysUntil}d`}
+                      </span>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <Calendar className="w-8 h-8 text-moon-dust/30 mx-auto mb-2" />
+                <p className="text-sm text-moon-dust">No upcoming events</p>
+                <button 
+                  onClick={() => navigate('/calendar')}
+                  className="mt-3 text-sm text-neon-violet hover:underline flex items-center gap-1 mx-auto"
                 >
-                  <div className={cn(
-                    'w-10 h-10 rounded-xl flex items-center justify-center',
-                    event.eventType === 'BIRTHDAY' 
-                      ? 'bg-solar-amber/20 text-solar-amber'
-                      : 'bg-toxic-rose/20 text-toxic-rose'
-                  )}>
-                    {event.eventType === 'BIRTHDAY' ? <Gift className="w-5 h-5" /> : <Heart className="w-5 h-5" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-starlight truncate">{event.contactName}</p>
-                    <p className="text-xs text-moon-dust">{event.eventType}</p>
-                  </div>
-                  <span className="text-xs text-neon-violet font-medium">
-                    {event.daysUntil}d
-                  </span>
-                </motion.div>
-              ))}
-            </div>
+                  <Plus className="w-3 h-3" />
+                  Add Event
+                </button>
+              </div>
+            )}
           </GlassCard>
           
           {/* Selected Contact Preview */}
@@ -168,7 +230,10 @@ export function Dashboard() {
                   </div>
                 </div>
                 
-                <button className="w-full btn-neon flex items-center justify-center gap-2">
+                <button 
+                  className="w-full btn-neon flex items-center justify-center gap-2"
+                  onClick={() => navigate('/contacts')}
+                >
                   View Profile
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -178,28 +243,33 @@ export function Dashboard() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Stat Card Component
 interface StatCardProps {
-  icon: typeof Users
-  label: string
-  value: string | number
-  trend: string
-  color: 'violet' | 'rose' | 'amber' | 'emerald'
+  icon: typeof Users;
+  label: string;
+  value: string | number;
+  trend: string;
+  color: 'violet' | 'rose' | 'amber' | 'emerald';
+  onClick?: () => void;
 }
 
-function StatCard({ icon: Icon, label, value, trend, color }: StatCardProps) {
+function StatCard({ icon: Icon, label, value, trend, color, onClick }: StatCardProps) {
   const colorClasses = {
     violet: 'text-neon-violet bg-neon-violet/20',
     rose: 'text-toxic-rose bg-toxic-rose/20',
     amber: 'text-solar-amber bg-solar-amber/20',
     emerald: 'text-cyber-emerald bg-cyber-emerald/20',
-  }
+  };
   
   return (
-    <GlassCard variant="hover" className="p-5">
+    <GlassCard 
+      variant="hover" 
+      className={cn('p-5', onClick && 'cursor-pointer')}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-moon-dust mb-1">{label}</p>
@@ -211,5 +281,5 @@ function StatCard({ icon: Icon, label, value, trend, color }: StatCardProps) {
         </div>
       </div>
     </GlassCard>
-  )
+  );
 }
