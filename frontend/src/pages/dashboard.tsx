@@ -14,11 +14,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrbitView } from '@/components/orbit-view/orbit-view';
 import { GlassCard } from '@/components/ui/glass-card';
-import { EmptyState } from '@/components/ui/empty-state';
+import { ToastContainer, useToasts } from '@/components/ui/toast';
 import { cn, getHealthColor } from '@/lib/utils';
 import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bloc/contacts.bloc';
 import { useEvents, calculateDaysUntil } from '@/bloc/events.bloc';
 import { useDrafts } from '@/bloc/drafts.bloc';
+import { seedDemoData } from '@/services/demo-data.service';
 import { motion } from 'framer-motion';
 import { 
   AlertTriangle, 
@@ -29,17 +30,28 @@ import {
   ChevronRight,
   Gift,
   Heart,
-  Plus
+  Plus,
+  Sparkles
 } from 'lucide-react';
 import type { Contact } from '@/types';
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { contacts, isLoading: contactsLoading } = useContacts();
-  const { events, isLoading: eventsLoading } = useEvents();
+  const { contacts, isLoading: contactsLoading, refetch: refetchContacts } = useContacts();
+  const { events, isLoading: eventsLoading, refetch: refetchEvents } = useEvents();
   const { drafts } = useDrafts();
+  const { toasts, addToast, dismissToast } = useToasts();
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  
+  const handleLoadDemoData = () => {
+    const result = seedDemoData();
+    if (result.contacts > 0) {
+      refetchContacts();
+      refetchEvents();
+      addToast({ type: 'success', message: `Loaded ${result.contacts} contacts and ${result.events} events` });
+    }
+  };
   
   // Calculate stats from real data
   const criticalContacts = countCriticalContacts(contacts);
@@ -63,7 +75,7 @@ export function Dashboard() {
   
   return (
     <div className="space-y-6">
-      {/* Stats Row */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Users}
@@ -114,15 +126,27 @@ export function Dashboard() {
                 onContactClick={(contact) => setSelectedContact(contact as Contact)}
               />
             ) : (
-              <EmptyState
-                icon={Users}
-                title="No contacts yet"
-                description="Add contacts to see your relationship orbit"
-                action={{ 
-                  label: 'Add Contact', 
-                  onClick: () => navigate('/contacts') 
-                }}
-              />
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-moon-dust/30 mx-auto mb-4" />
+                <h3 className="text-lg font-display font-semibold text-starlight mb-2">No contacts yet</h3>
+                <p className="text-moon-dust mb-6">Add contacts to see your relationship orbit</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button 
+                    className="btn-neon-solid flex items-center gap-2"
+                    onClick={() => navigate('/contacts')}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Contact
+                  </button>
+                  <button 
+                    className="btn-neon flex items-center gap-2"
+                    onClick={handleLoadDemoData}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Load Demo Data
+                  </button>
+                </div>
+              </div>
             )}
           </GlassCard>
         </div>
