@@ -20,7 +20,7 @@ import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bl
 import { useEvents, calculateDaysUntil } from '@/bloc/events.bloc';
 import { useDrafts } from '@/bloc/drafts.bloc';
 import { seedDemoData } from '@/services/demo-data.service';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AlertTriangle, 
   Calendar, 
@@ -31,7 +31,10 @@ import {
   Gift,
   Heart,
   Plus,
-  Sparkles
+  Sparkles,
+  Wand2,
+  Loader2,
+  X
 } from 'lucide-react';
 import type { Contact } from '@/types';
 
@@ -39,17 +42,40 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { contacts, isLoading: contactsLoading, refetch: refetchContacts } = useContacts();
   const { events, isLoading: eventsLoading, refetch: refetchEvents } = useEvents();
-  const { drafts } = useDrafts();
+  const { drafts, isGenerating, generateDraft, refetch: refetchDrafts } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateContactId, setGenerateContactId] = useState<string>('');
   
   const handleLoadDemoData = () => {
     const result = seedDemoData();
     if (result.contacts > 0) {
       refetchContacts();
       refetchEvents();
-      addToast({ type: 'success', message: `Loaded ${result.contacts} contacts and ${result.events} events` });
+      refetchDrafts();
+      addToast({ type: 'success', message: `Loaded ${result.contacts} contacts, ${result.events} events, and ${result.drafts} drafts` });
+    }
+  };
+  
+  const handleGenerateDraft = async () => {
+    if (!generateContactId) {
+      addToast({ type: 'warning', message: 'Please select a contact' });
+      return;
+    }
+    
+    const draft = await generateDraft(generateContactId);
+    
+    if (draft) {
+      setShowGenerateModal(false);
+      setGenerateContactId('');
+      addToast({ 
+        type: 'success', 
+        message: `Draft created for ${draft.contactName}! View in War Room.` 
+      });
+    } else {
+      addToast({ type: 'error', message: 'Failed to generate draft' });
     }
   };
   
@@ -76,6 +102,85 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* Generate Draft Modal */}
+      <AnimatePresence>
+        {showGenerateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowGenerateModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card max-w-md w-full p-6 rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-display font-bold text-starlight flex items-center gap-2">
+                  <Wand2 className="w-5 h-5 text-neon-violet" />
+                  Generate Draft
+                </h2>
+                <button
+                  onClick={() => setShowGenerateModal(false)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-moon-dust hover:text-starlight transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <p className="text-moon-dust mb-4">
+                Select a contact to generate a personalized message using AI.
+              </p>
+              
+              <select
+                value={generateContactId}
+                onChange={(e) => setGenerateContactId(e.target.value)}
+                className="w-full p-3 bg-void-slate/50 border border-white/10 rounded-xl text-starlight mb-4 focus:outline-none focus:border-neon-violet/50"
+              >
+                <option value="" className="bg-void-slate">Select a contact...</option>
+                {contacts.map((contact) => (
+                  <option key={contact.id} value={contact.id} className="bg-void-slate">
+                    {contact.fullName} ({contact.relationType})
+                  </option>
+                ))}
+              </select>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowGenerateModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-white/10 text-moon-dust hover:text-starlight hover:bg-white/5 transition-all"
+                  disabled={isGenerating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGenerateDraft}
+                  disabled={isGenerating || !generateContactId}
+                  className="flex-1 btn-neon-solid flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4" />
+                      Generate
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Users}
@@ -109,6 +214,28 @@ export function Dashboard() {
           color="emerald"
         />
       </div>
+      
+      {/* Quick Actions */}
+      {contacts.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowGenerateModal(true)}
+            className="btn-neon-solid flex items-center gap-2"
+          >
+            <Wand2 className="w-4 h-4" />
+            Generate Draft
+          </motion.button>
+          <button 
+            className="btn-neon flex items-center gap-2"
+            onClick={handleLoadDemoData}
+          >
+            <Sparkles className="w-4 h-4" />
+            Reload Demo Data
+          </button>
+        </div>
+      )}
       
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

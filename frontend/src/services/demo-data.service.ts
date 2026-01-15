@@ -2,11 +2,11 @@
  * Demo Data Seed
  * 
  * Provides sample data for demonstration purposes.
- * Run this to populate localStorage with realistic demo contacts and events.
+ * Run this to populate localStorage with realistic demo contacts, events, and drafts.
  */
 
 import * as storageService from './storage.service';
-import type { Contact, Event } from '@/types';
+import type { Contact, Event, Draft } from '@/types';
 
 const DEMO_CONTACTS: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
@@ -178,6 +178,121 @@ const DEMO_CONTACTS: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>[] = [
     ghostingRiskScore: 0.55,
     notes: 'CEO of partner company. Important business contact.',
   },
+  {
+    userId: 'demo',
+    fullName: 'Sophia Lee',
+    nickname: 'Sophie',
+    email: 'sophia.lee@design.co',
+    phoneNumber: '+1 555-1313',
+    instagramHandle: '@sophialee_ux',
+    relationType: 'WORK',
+    intimacyLevel: 7,
+    healthScore: 81,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.12,
+    notes: 'UX Lead on current project. Amazing attention to detail.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'William Taylor',
+    nickname: 'Will',
+    email: 'will.taylor@finance.com',
+    phoneNumber: '+1 555-1414',
+    relationType: 'FRIEND',
+    intimacyLevel: 6,
+    healthScore: 58,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.38,
+    notes: 'College buddy. Works in investment banking.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Grace Chen',
+    email: 'grace.chen@family.com',
+    phoneNumber: '+1 555-1515',
+    relationType: 'FAMILY',
+    intimacyLevel: 8,
+    healthScore: 90,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'ALWAYS_AUTO_SEND',
+    ghostingRiskScore: 0.03,
+    notes: 'Mother. Weekly Sunday calls.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Daniel Kumar',
+    nickname: 'Dan',
+    email: 'daniel.kumar@tech.io',
+    phoneNumber: '+1 555-1616',
+    instagramHandle: '@dan_codes',
+    relationType: 'NETWORK',
+    intimacyLevel: 5,
+    healthScore: 52,
+    defaultChannel: 'EMAIL',
+    defaultAutoPolicy: 'ALWAYS_REVIEW',
+    ghostingRiskScore: 0.42,
+    notes: 'Met at AWS re:Invent. Cloud architect.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Isabella Garcia',
+    nickname: 'Bella',
+    email: 'bella.garcia@marketing.co',
+    phoneNumber: '+1 555-1717',
+    instagramHandle: '@bellagarcia',
+    relationType: 'WORK',
+    intimacyLevel: 5,
+    healthScore: 68,
+    defaultChannel: 'EMAIL',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.22,
+    notes: 'Marketing Director. Great for go-to-market strategies.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Christopher Adams',
+    nickname: 'Chris',
+    email: 'chris.adams@startup.io',
+    phoneNumber: '+1 555-1818',
+    relationType: 'FRIEND',
+    intimacyLevel: 8,
+    healthScore: 75,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.18,
+    notes: 'Co-founder of previous startup. Still close.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Victoria Scott',
+    nickname: 'Vic',
+    email: 'victoria.scott@law.firm',
+    phoneNumber: '+1 555-1919',
+    relationType: 'NETWORK',
+    intimacyLevel: 4,
+    healthScore: 45,
+    defaultChannel: 'EMAIL',
+    defaultAutoPolicy: 'ALWAYS_REVIEW',
+    ghostingRiskScore: 0.52,
+    notes: 'Corporate lawyer. Helped with company formation.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Nathan Wright',
+    nickname: 'Nate',
+    email: 'nate.wright@sports.club',
+    phoneNumber: '+1 555-2020',
+    instagramHandle: '@nate_runs',
+    relationType: 'FRIEND',
+    intimacyLevel: 6,
+    healthScore: 70,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.28,
+    notes: 'Running partner. Train together on weekends.',
+  },
 ];
 
 /**
@@ -187,209 +302,126 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
   const events: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>[] = [];
   const today = new Date();
   
-  // Helper to get date N days from now
   const getDate = (daysFromNow: number) => {
     const d = new Date(today);
     d.setDate(d.getDate() + daysFromNow);
     return d.toISOString().split('T')[0];
   };
   
-  // Find contacts by name
   const findContact = (name: string) => contacts.find(c => c.fullName.includes(name));
   
-  // Priya's birthday in 2 days
-  const priya = findContact('Priya');
-  if (priya) {
-    events.push({
-      contactId: priya.id,
-      eventType: 'BIRTHDAY',
-      eventDate: getDate(2),
-      originalYear: 1992,
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [1, 7],
-    });
-  }
+  // Event data
+  const eventConfigs = [
+    { name: 'Priya', days: 2, type: 'BIRTHDAY' as const, year: 1992, sig: 'MEDIUM' as const },
+    { name: 'Sarah', days: 5, type: 'ANNIVERSARY' as const, year: 2020, sig: 'HIGH' as const },
+    { name: 'Michael', days: 8, type: 'PROMOTION' as const, eventName: 'SVP Announcement', sig: 'HIGH' as const },
+    { name: 'Emma', days: 12, type: 'GRADUATION' as const, eventName: 'Medical School Graduation', sig: 'HIGH' as const },
+    { name: 'David', days: 18, type: 'BIRTHDAY' as const, year: 1988, sig: 'LOW' as const },
+    { name: 'Aisha', days: 3, type: 'NEW_JOB' as const, eventName: 'CTO at TechVentures', sig: 'MEDIUM' as const },
+    { name: 'Robert', days: 25, type: 'BIRTHDAY' as const, year: 1975, sig: 'MEDIUM' as const },
+    { name: 'Jennifer', days: 7, type: 'CUSTOM' as const, eventName: '3 Years at Company', sig: 'MEDIUM' as const },
+    { name: 'Alex Thompson', days: 15, type: 'NEW_BABY' as const, eventName: 'Baby Shower', sig: 'HIGH' as const },
+    { name: 'Olivia', days: 22, type: 'HOUSE_WARMING' as const, eventName: 'New Apartment Party', sig: 'MEDIUM' as const },
+    { name: 'Marcus', days: 30, type: 'BIRTHDAY' as const, year: 1970, sig: 'MEDIUM' as const },
+    { name: 'James', days: 1, type: 'CUSTOM' as const, eventName: 'Reconnection Reminder', sig: 'LOW' as const },
+    { name: 'Sophia', days: 4, type: 'BIRTHDAY' as const, year: 1994, sig: 'MEDIUM' as const },
+    { name: 'William', days: 10, type: 'BIRTHDAY' as const, year: 1991, sig: 'MEDIUM' as const },
+    { name: 'Grace', days: 14, type: 'BIRTHDAY' as const, year: 1965, sig: 'HIGH' as const },
+    { name: 'Daniel', days: 20, type: 'NEW_JOB' as const, eventName: 'Principal Architect at AWS', sig: 'MEDIUM' as const },
+    { name: 'Isabella', days: 9, type: 'PROMOTION' as const, eventName: 'VP Marketing', sig: 'MEDIUM' as const },
+    { name: 'Christopher', days: 6, type: 'BIRTHDAY' as const, year: 1990, sig: 'HIGH' as const },
+    { name: 'Victoria', days: 28, type: 'BIRTHDAY' as const, year: 1985, sig: 'LOW' as const },
+    { name: 'Nathan', days: 11, type: 'CUSTOM' as const, eventName: 'Marathon Day', sig: 'LOW' as const },
+  ];
   
-  // Sarah's anniversary in 5 days
-  const sarah = findContact('Sarah');
-  if (sarah) {
-    events.push({
-      contactId: sarah.id,
-      eventType: 'ANNIVERSARY',
-      eventDate: getDate(5),
-      originalYear: 2020,
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'HIGH',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 7, 14],
-      notes: '5th anniversary - special celebration planned',
-    });
-  }
-  
-  // Michael's promotion in 8 days
-  const michael = findContact('Michael');
-  if (michael) {
-    events.push({
-      contactId: michael.id,
-      eventType: 'PROMOTION',
-      eventName: 'SVP Announcement',
-      eventDate: getDate(8),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'HIGH',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 3],
-    });
-  }
-  
-  // Emma's graduation in 12 days
-  const emma = findContact('Emma');
-  if (emma) {
-    events.push({
-      contactId: emma.id,
-      eventType: 'GRADUATION',
-      eventName: 'Medical School Graduation',
-      eventDate: getDate(12),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'HIGH',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 7, 14],
-      notes: 'Becoming Dr. Thompson!',
-    });
-  }
-  
-  // David's birthday in 18 days
-  const david = findContact('David');
-  if (david) {
-    events.push({
-      contactId: david.id,
-      eventType: 'BIRTHDAY',
-      eventDate: getDate(18),
-      originalYear: 1988,
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'LOW',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [1],
-    });
-  }
-  
-  // Aisha's new job in 3 days
-  const aisha = findContact('Aisha');
-  if (aisha) {
-    events.push({
-      contactId: aisha.id,
-      eventType: 'NEW_JOB',
-      eventName: 'CTO at TechVentures',
-      eventDate: getDate(3),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [1],
-    });
-  }
-  
-  // Robert's birthday in 25 days
-  const robert = findContact('Robert');
-  if (robert) {
-    events.push({
-      contactId: robert.id,
-      eventType: 'BIRTHDAY',
-      eventDate: getDate(25),
-      originalYear: 1975,
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 7],
-    });
-  }
-  
-  // Jennifer's work anniversary in 7 days
-  const jennifer = findContact('Jennifer');
-  if (jennifer) {
-    events.push({
-      contactId: jennifer.id,
-      eventType: 'CUSTOM',
-      eventName: '3 Years at Company',
-      eventDate: getDate(7),
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [1],
-      notes: 'Work anniversary celebration',
-    });
-  }
-  
-  // Alex's new baby in 15 days
-  const alex = findContact('Alex Thompson');
-  if (alex) {
-    events.push({
-      contactId: alex.id,
-      eventType: 'NEW_BABY',
-      eventName: 'Baby Shower',
-      eventDate: getDate(15),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'HIGH',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 7],
-      notes: 'First child! Need to get a gift.',
-    });
-  }
-  
-  // Olivia's house warming in 22 days
-  const olivia = findContact('Olivia');
-  if (olivia) {
-    events.push({
-      contactId: olivia.id,
-      eventType: 'HOUSE_WARMING',
-      eventName: 'New Apartment Party',
-      eventDate: getDate(22),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [1, 7],
-      notes: 'Moved to downtown',
-    });
-  }
-  
-  // Marcus birthday in 30 days
-  const marcus = findContact('Marcus');
-  if (marcus) {
-    events.push({
-      contactId: marcus.id,
-      eventType: 'BIRTHDAY',
-      eventDate: getDate(30),
-      originalYear: 1970,
-      recurrenceRule: 'YEARLY',
-      significanceLevel: 'MEDIUM',
-      automationOverride: 'FORCE_REVIEW',
-      reminderDaysBefore: [1, 7],
-    });
-  }
-  
-  // James needs reconnection - custom event
-  const james = findContact('James');
-  if (james) {
-    events.push({
-      contactId: james.id,
-      eventType: 'CUSTOM',
-      eventName: 'Reconnection Reminder',
-      eventDate: getDate(1),
-      recurrenceRule: 'ONCE',
-      significanceLevel: 'LOW',
-      automationOverride: 'USE_CONTACT_DEFAULT',
-      reminderDaysBefore: [0],
-      notes: 'Has been 6 months since last contact',
-    });
+  for (const cfg of eventConfigs) {
+    const contact = findContact(cfg.name);
+    if (contact) {
+      events.push({
+        contactId: contact.id,
+        eventType: cfg.type,
+        eventName: cfg.eventName,
+        eventDate: getDate(cfg.days),
+        originalYear: cfg.year,
+        recurrenceRule: ['BIRTHDAY', 'ANNIVERSARY'].includes(cfg.type) ? 'YEARLY' : 'ONCE',
+        significanceLevel: cfg.sig,
+        automationOverride: cfg.sig === 'HIGH' ? 'FORCE_REVIEW' : 'USE_CONTACT_DEFAULT',
+        reminderDaysBefore: cfg.sig === 'HIGH' ? [1, 7, 14] : [1, 7],
+      });
+    }
   }
   
   return events;
 }
 
 /**
+ * Generate AI drafts for upcoming events
+ */
+function generateDemoDrafts(contacts: Contact[], events: Event[]): Omit<Draft, 'id' | 'createdAt' | 'updatedAt'>[] {
+  const drafts: Omit<Draft, 'id' | 'createdAt' | 'updatedAt'>[] = [];
+  const contactMap = new Map(contacts.map(c => [c.id, c]));
+  
+  // Get events happening in the next 7 days
+  const upcomingEvents = events.filter(e => {
+    const eventDate = new Date(e.eventDate);
+    const today = new Date();
+    const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  });
+  
+  const draftTemplates = {
+    BIRTHDAY: [
+      { content: "Happy Birthday! Wishing you an incredible year ahead filled with success and happiness. Enjoy your special day!", rationale: "Selected warm, professional tone based on relationship history and past interaction patterns." },
+      { content: "Another year of achievements! Happy Birthday - may this year bring you even more success and joy than the last. Celebrate big!", rationale: "Enthusiastic tone chosen due to high intimacy level and previous positive exchanges." },
+    ],
+    ANNIVERSARY: [
+      { content: "Happy Anniversary! Another beautiful year together. Here's to many more years of love, laughter, and adventures. Love you!", rationale: "Maximum warmth applied for PARTNER relation. Personal and romantic tone appropriate for high intimacy level." },
+    ],
+    PROMOTION: [
+      { content: "Congratulations on the well-deserved promotion! Your hard work and dedication have truly paid off. Excited to see you excel in this new role.", rationale: "Professional congratulatory tone selected for WORK relation. Avoided emojis per user preferences for work contacts." },
+    ],
+    GRADUATION: [
+      { content: "Congratulations on your graduation! All those years of hard work have led to this moment. So proud of everything you've accomplished. The world is yours!", rationale: "High enthusiasm tone selected for FAMILY relation combined with milestone event significance." },
+    ],
+    NEW_JOB: [
+      { content: "Congratulations on the new role! This is such an exciting opportunity. Wishing you all the best as you start this new chapter.", rationale: "Supportive tone chosen for career milestone. Balanced professional and personal warmth." },
+    ],
+    NEW_BABY: [
+      { content: "Congratulations on the wonderful news! So excited for you as you embark on this amazing journey of parenthood. Can't wait to meet the little one!", rationale: "Warm, family-oriented tone for FAMILY relation. High significance event requiring personal touch." },
+    ],
+    CUSTOM: [
+      { content: "Hey! It's been a while since we last caught up. Would love to reconnect and hear what you've been up to. Coffee sometime?", rationale: "Casual reconnection tone for low-touch relationship. Aimed at relationship maintenance." },
+    ],
+  };
+  
+  for (const event of upcomingEvents.slice(0, 8)) {
+    const contact = contactMap.get(event.contactId);
+    if (!contact) continue;
+    
+    const templates = draftTemplates[event.eventType as keyof typeof draftTemplates] || draftTemplates.CUSTOM;
+    const template = templates[Math.floor(Math.random() * templates.length)];
+    
+    const scheduledTime = new Date(event.eventDate);
+    scheduledTime.setHours(9, 0, 0, 0);
+    
+    drafts.push({
+      eventId: event.id,
+      contactId: contact.id,
+      generatedContent: template.content,
+      aiRationale: template.rationale,
+      status: contact.defaultAutoPolicy === 'ALWAYS_AUTO_SEND' ? 'APPROVED_WAITING' : 'WAITING_FOR_REVIEW',
+      scheduledSendTime: scheduledTime.toISOString(),
+      userEdited: false,
+    });
+  }
+  
+  return drafts;
+}
+
+/**
  * Seed the application with demo data
  */
-export function seedDemoData(): { contacts: number; events: number } {
+export function seedDemoData(): { contacts: number; events: number; drafts: number } {
   // Clear existing data first for fresh demo
   storageService.clearAllData();
   
@@ -402,12 +434,20 @@ export function seedDemoData(): { contacts: number; events: number } {
   
   // Add events
   const eventData = generateDemoEvents(addedContacts);
+  const addedEvents: Event[] = [];
   for (const event of eventData) {
-    storageService.addEvent(event);
+    const added = storageService.addEvent(event);
+    addedEvents.push(added);
   }
   
-  console.log(`Seeded ${addedContacts.length} contacts and ${eventData.length} events`);
-  return { contacts: addedContacts.length, events: eventData.length };
+  // Add drafts
+  const draftData = generateDemoDrafts(addedContacts, addedEvents);
+  for (const draft of draftData) {
+    storageService.addDraft(draft);
+  }
+  
+  console.log(`Seeded ${addedContacts.length} contacts, ${addedEvents.length} events, and ${draftData.length} drafts`);
+  return { contacts: addedContacts.length, events: addedEvents.length, drafts: draftData.length };
 }
 
 /**
