@@ -23,17 +23,27 @@ import {
   Clock, 
   CheckCircle, 
   Sparkles,
-  TrendingDown
+  TrendingDown,
+  X,
+  Save
 } from 'lucide-react';
 
 type FilterType = 'all' | 'review' | 'approved';
 
+interface EditingDraft {
+  id: string;
+  contactName: string;
+  content: string;
+}
+
 export function ReviewQueue() {
-  const { drafts, isLoading, approve, reject } = useDrafts();
+  const { drafts, isLoading, approve, reject, edit } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<EditingDraft | null>(null);
+  const [editContent, setEditContent] = useState('');
   
   const filteredDrafts = filterByStatus(drafts, filter);
   const statusCounts = countByStatus(drafts);
@@ -46,8 +56,30 @@ export function ReviewQueue() {
     addToast({ type: 'success', message: 'Draft approved and scheduled' });
   };
   
-  const handleEdit = (_id: string) => {
-    addToast({ type: 'info', message: 'Edit functionality coming soon!' });
+  const handleEdit = (id: string) => {
+    const draft = drafts.find(d => d.id === id);
+    if (draft) {
+      setEditingDraft({
+        id: draft.id,
+        contactName: draft.contactName,
+        content: draft.editedContent || draft.generatedContent,
+      });
+      setEditContent(draft.editedContent || draft.generatedContent);
+    }
+  };
+  
+  const handleSaveEdit = async () => {
+    if (editingDraft && editContent.trim()) {
+      await edit(editingDraft.id, editContent.trim());
+      addToast({ type: 'success', message: 'Draft updated successfully' });
+      setEditingDraft(null);
+      setEditContent('');
+    }
+  };
+  
+  const handleCancelEdit = () => {
+    setEditingDraft(null);
+    setEditContent('');
   };
   
   const handleReject = async (id: string) => {
@@ -66,6 +98,63 @@ export function ReviewQueue() {
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {editingDraft && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCancelEdit}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card max-w-2xl w-full p-6 rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-display font-bold text-starlight">
+                  Edit Draft for {editingDraft.contactName}
+                </h2>
+                <button
+                  onClick={handleCancelEdit}
+                  className="p-2 rounded-lg hover:bg-white/10 text-moon-dust hover:text-starlight transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full h-48 p-4 bg-void-slate/50 border border-white/10 rounded-xl text-starlight resize-none focus:outline-none focus:border-neon-violet/50"
+                placeholder="Enter your message..."
+              />
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleCancelEdit}
+                  className="flex-1 py-3 rounded-xl border border-white/10 text-moon-dust hover:text-starlight hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={!editContent.trim()}
+                  className="flex-1 btn-neon-solid flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -130,7 +219,7 @@ export function ReviewQueue() {
                 contactName={draft.contactName}
                 eventType={draft.eventType || 'CUSTOM'}
                 eventName={draft.eventName}
-                generatedContent={draft.generatedContent}
+                generatedContent={draft.editedContent || draft.generatedContent}
                 aiRationale={draft.aiRationale}
                 status={draft.status as 'WAITING_FOR_REVIEW' | 'APPROVED_WAITING' | 'PENDING_GENERATION'}
                 scheduledTime={draft.scheduledSendTime 

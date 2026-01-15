@@ -227,13 +227,6 @@ export function Dashboard() {
             <Wand2 className="w-4 h-4" />
             Generate Draft
           </motion.button>
-          <button 
-            className="btn-neon flex items-center gap-2"
-            onClick={handleLoadDemoData}
-          >
-            <Sparkles className="w-4 h-4" />
-            Reload Demo Data
-          </button>
         </div>
       )}
       
