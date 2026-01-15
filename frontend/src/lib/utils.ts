@@ -17,19 +17,23 @@ export function getHealthColor(score: number): 'high' | 'medium' | 'low' {
 /**
  * Calculate orbit distance based on health score and intimacy
  * Higher health = closer to center
+ * Capped at 260px to fit within the 600px container
  */
 export function calculateOrbitDistance(
   healthScore: number,
   intimacyLevel: number,
-  baseDistance: number = 150
+  baseDistance: number = 80
 ): number {
   // Intimacy affects base distance (closer = more intimate)
   const intimacyFactor = 1 - (intimacyLevel - 1) / 9 // 0 to 1, where 10 intimacy = 0
   
   // Health affects variance (lower health = drifts further)
-  const healthVariance = (100 - healthScore) * 2
+  const healthVariance = (100 - healthScore) * 1.5
   
-  return baseDistance + (intimacyFactor * 100) + healthVariance
+  const distance = baseDistance + (intimacyFactor * 80) + healthVariance
+  
+  // Cap at 260px to stay within container
+  return Math.min(distance, 260)
 }
 
 /**

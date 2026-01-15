@@ -10,8 +10,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as storageService from '@/services/storage.service';
+import { generateDraftContent, generateDraftWithContext } from '@/services/llm.service';
 import { logger, startTimer } from '@/lib/logger';
-import type { Draft, DraftWithContext, AutoPolicy, AutomationOverride, SignificanceLevel, Contact } from '@/types';
+import type { Draft, DraftWithContext, AutoPolicy, AutomationOverride, SignificanceLevel, Contact, Event } from '@/types';
 
 // =============================================================================
 // AUTOMATION POLICY LOGIC
@@ -84,15 +85,21 @@ export function countByStatus(drafts: DraftWithContext[]): Record<string, number
 
 /**
  * Filter drafts by status.
+ * Active filter excludes CANCELLED and SENT drafts.
  */
 export function filterByStatus(
   drafts: DraftWithContext[],
   status: 'all' | 'review' | 'approved'
 ): DraftWithContext[] {
-  if (status === 'all') return drafts;
-  if (status === 'review') return drafts.filter(d => d.status === 'WAITING_FOR_REVIEW');
-  if (status === 'approved') return drafts.filter(d => d.status === 'APPROVED_WAITING');
-  return drafts;
+  // First filter out cancelled and sent drafts
+  const activeDrafts = drafts.filter(d => 
+    d.status !== 'CANCELLED' && d.status !== 'SENT' && d.status !== 'FAILED'
+  );
+  
+  if (status === 'all') return activeDrafts;
+  if (status === 'review') return activeDrafts.filter(d => d.status === 'WAITING_FOR_REVIEW');
+  if (status === 'approved') return activeDrafts.filter(d => d.status === 'APPROVED_WAITING');
+  return activeDrafts;
 }
 
 /**
@@ -130,6 +137,7 @@ export function enrichDraftsWithContext(drafts: Draft[], contacts: Contact[]): D
 interface DraftsState {
   drafts: DraftWithContext[];
   isLoading: boolean;
+  isGenerating: boolean;
   error: string | null;
 }
 
@@ -141,6 +149,7 @@ export function useDrafts() {
   const [state, setState] = useState<DraftsState>({
     drafts: [],
     isLoading: true,
+    isGenerating: false,
     error: null,
   });
   
@@ -160,6 +169,7 @@ export function useDrafts() {
         setState({
           drafts: enrichedDrafts,
           isLoading: false,
+          isGenerating: false,
           error: null,
         });
         return;
@@ -169,6 +179,7 @@ export function useDrafts() {
       setState({
         drafts: [],
         isLoading: false,
+        isGenerating: false,
         error: null,
       });
     } catch (err) {
@@ -177,6 +188,7 @@ export function useDrafts() {
       setState({
         drafts: [],
         isLoading: false,
+        isGenerating: false,
         error: error.message,
       });
     } finally {
@@ -233,12 +245,100 @@ export function useDrafts() {
     }));
   }, []);
   
+  /**
+   * Generate a new draft using local LLM for a specific contact.
+   * Optionally accepts an event or custom context for personalization.
+   */
+  const generateDraft = useCallback(async (
+    contactId: string,
+    options?: { eventId?: string; context?: string }
+  ): Promise<DraftWithContext | null> => {
+    const timer = startTimer('useDrafts.generateDraft');
+    logger.info('Generating draft', { contactId, options });
+    
+    setState(prev => ({ ...prev, isGenerating: true, error: null }));
+    
+    try {
+      // Get contact data
+      const contacts = storageService.loadContacts();
+      const contact = contacts.find(c => c.id === contactId);
+      
+      if (!contact) {
+        throw new Error(`Contact not found: ${contactId}`);
+      }
+      
+      // Get event data if provided
+      let event: Event | null = null;
+      if (options?.eventId) {
+        const events = storageService.loadEvents();
+        event = events.find(e => e.id === options.eventId) || null;
+      }
+      
+      // Generate content using LLM
+      let result;
+      if (options?.context) {
+        result = await generateDraftWithContext(contact, options.context);
+      } else {
+        result = await generateDraftContent(contact, event);
+      }
+      
+      // Determine scheduled time (default: 9 AM tomorrow)
+      const scheduledTime = new Date();
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+      scheduledTime.setHours(9, 0, 0, 0);
+      
+      // Create the draft
+      const newDraft = storageService.addDraft({
+        eventId: options?.eventId,
+        contactId: contact.id,
+        generatedContent: result.content,
+        aiRationale: result.rationale,
+        aiModelUsed: result.modelUsed,
+        status: 'WAITING_FOR_REVIEW',
+        scheduledSendTime: scheduledTime.toISOString(),
+        userEdited: false,
+      });
+      
+      // Enrich with context for UI
+      const enrichedDraft: DraftWithContext = {
+        ...newDraft,
+        contactName: contact.fullName,
+        contactAvatar: contact.avatarUrl,
+        eventType: event?.eventType || 'CUSTOM',
+        eventName: event?.eventName,
+        healthScore: contact.healthScore,
+      };
+      
+      // Update state with new draft
+      setState(prev => ({
+        ...prev,
+        drafts: [enrichedDraft, ...prev.drafts],
+        isGenerating: false,
+      }));
+      
+      timer.end();
+      return enrichedDraft;
+      
+    } catch (err) {
+      const error = err as Error;
+      logger.error('Failed to generate draft', { error: error.message });
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: error.message,
+      }));
+      timer.end();
+      return null;
+    }
+  }, []);
+  
   return {
     ...state,
     refetch: fetchData,
     approve,
     reject,
     edit,
+    generateDraft,
   };
 }
 
