@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
-import { User, Phone, Mail, Instagram } from 'lucide-react';
+import { User, Phone, Mail, Instagram, Heart } from 'lucide-react';
 import type { Contact, RelationType, AutoPolicy, Channel } from '@/types';
 import { logger } from '@/lib/logger';
 
@@ -71,6 +71,7 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
   const [intimacyLevel, setIntimacyLevel] = useState(5);
   const [defaultChannel, setDefaultChannel] = useState<Channel>('WHATSAPP');
   const [defaultAutoPolicy, setDefaultAutoPolicy] = useState<AutoPolicy>('ALWAYS_REVIEW');
+  const [healthScore, setHealthScore] = useState(50);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +89,7 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
         setIntimacyLevel(editContact.intimacyLevel);
         setDefaultChannel(editContact.defaultChannel);
         setDefaultAutoPolicy(editContact.defaultAutoPolicy);
+        setHealthScore(editContact.healthScore);
         setNotes(editContact.notes || '');
       } else {
         // Reset to defaults for new contact
@@ -100,6 +102,7 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
         setIntimacyLevel(5);
         setDefaultChannel('WHATSAPP');
         setDefaultAutoPolicy('ALWAYS_REVIEW');
+        setHealthScore(50);
         setNotes('');
       }
       setErrors({});
@@ -147,7 +150,7 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
         intimacyLevel,
         defaultChannel,
         defaultAutoPolicy,
-        healthScore: editContact?.healthScore ?? 50,
+        healthScore,
         ghostingRiskScore: editContact?.ghostingRiskScore ?? 0,
         notes: notes.trim() || undefined,
       };
@@ -360,6 +363,35 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
             <div className="flex justify-between text-xs text-moon-dust/50">
               <span>Acquaintance</span>
               <span>Soulmate</span>
+            </div>
+          </div>
+          
+          {/* Health Score */}
+          <div>
+            <label htmlFor="healthScore" className="block text-sm text-moon-dust mb-1">
+              <Heart className="inline w-4 h-4 mr-1" />
+              Relationship Health: <span className={cn(
+                healthScore >= 70 ? 'text-cyber-emerald' :
+                healthScore >= 40 ? 'text-solar-amber' : 'text-toxic-rose'
+              )}>{healthScore}%</span>
+            </label>
+            <input
+              id="healthScore"
+              type="range"
+              min="0"
+              max="100"
+              value={healthScore}
+              onChange={(e) => setHealthScore(Number(e.target.value))}
+              className={cn(
+                'w-full',
+                healthScore >= 70 ? 'accent-cyber-emerald' :
+                healthScore >= 40 ? 'accent-solar-amber' : 'accent-toxic-rose'
+              )}
+            />
+            <div className="flex justify-between text-xs text-moon-dust/50">
+              <span>Critical</span>
+              <span>Needs Attention</span>
+              <span>Healthy</span>
             </div>
           </div>
         </div>
