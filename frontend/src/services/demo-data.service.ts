@@ -45,10 +45,10 @@ const DEMO_CONTACTS: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>[] = [
     phoneNumber: '+1 555-0303',
     relationType: 'PARTNER',
     intimacyLevel: 10,
-    healthScore: 78,
+    healthScore: 95,
     defaultChannel: 'WHATSAPP',
     defaultAutoPolicy: 'ALWAYS_AUTO_SEND',
-    ghostingRiskScore: 0.05,
+    ghostingRiskScore: 0.02,
     notes: 'Life partner. Anniversary is important.',
   },
   {
@@ -102,7 +102,7 @@ const DEMO_CONTACTS: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>[] = [
     instagramHandle: '@aisha_codes',
     relationType: 'FRIEND',
     intimacyLevel: 7,
-    healthScore: 68,
+    healthScore: 72,
     defaultChannel: 'WHATSAPP',
     defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
     ghostingRiskScore: 0.25,
@@ -122,6 +122,62 @@ const DEMO_CONTACTS: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>[] = [
     ghostingRiskScore: 0.35,
     notes: 'Angel investor. Met through YC network.',
   },
+  {
+    userId: 'demo',
+    fullName: 'Jennifer Martinez',
+    nickname: 'Jen',
+    email: 'jen.martinez@tech.com',
+    phoneNumber: '+1 555-0909',
+    instagramHandle: '@jenmartinez',
+    relationType: 'WORK',
+    intimacyLevel: 6,
+    healthScore: 78,
+    defaultChannel: 'EMAIL',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.15,
+    notes: 'Product Manager at current company. Great collaborator.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Alex Thompson',
+    email: 'alex.t@family.com',
+    phoneNumber: '+1 555-1010',
+    relationType: 'FAMILY',
+    intimacyLevel: 9,
+    healthScore: 88,
+    defaultChannel: 'WHATSAPP',
+    defaultAutoPolicy: 'ALWAYS_AUTO_SEND',
+    ghostingRiskScore: 0.05,
+    notes: 'Older brother. Works in finance.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Olivia Brown',
+    nickname: 'Liv',
+    email: 'olivia.b@creative.agency',
+    phoneNumber: '+1 555-1111',
+    instagramHandle: '@livdesigns',
+    relationType: 'FRIEND',
+    intimacyLevel: 7,
+    healthScore: 65,
+    defaultChannel: 'INSTAGRAM',
+    defaultAutoPolicy: 'AUTO_SEND_LOW_RISK',
+    ghostingRiskScore: 0.30,
+    notes: 'College roommate. Graphic designer. Very creative.',
+  },
+  {
+    userId: 'demo',
+    fullName: 'Marcus Johnson',
+    email: 'marcus.j@enterprise.com',
+    phoneNumber: '+1 555-1212',
+    relationType: 'NETWORK',
+    intimacyLevel: 4,
+    healthScore: 48,
+    defaultChannel: 'EMAIL',
+    defaultAutoPolicy: 'ALWAYS_REVIEW',
+    ghostingRiskScore: 0.55,
+    notes: 'CEO of partner company. Important business contact.',
+  },
 ];
 
 /**
@@ -131,15 +187,23 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
   const events: Omit<Event, 'id' | 'createdAt' | 'updatedAt'>[] = [];
   const today = new Date();
   
-  // Priya's birthday in 3 days
-  const priya = contacts.find(c => c.fullName === 'Priya Sharma');
+  // Helper to get date N days from now
+  const getDate = (daysFromNow: number) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + daysFromNow);
+    return d.toISOString().split('T')[0];
+  };
+  
+  // Find contacts by name
+  const findContact = (name: string) => contacts.find(c => c.fullName.includes(name));
+  
+  // Priya's birthday in 2 days
+  const priya = findContact('Priya');
   if (priya) {
-    const bday = new Date(today);
-    bday.setDate(bday.getDate() + 3);
     events.push({
       contactId: priya.id,
       eventType: 'BIRTHDAY',
-      eventDate: bday.toISOString().split('T')[0],
+      eventDate: getDate(2),
       originalYear: 1992,
       recurrenceRule: 'YEARLY',
       significanceLevel: 'MEDIUM',
@@ -148,15 +212,13 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
     });
   }
   
-  // Sarah's anniversary in 7 days
-  const sarah = contacts.find(c => c.fullName === 'Sarah Williams');
+  // Sarah's anniversary in 5 days
+  const sarah = findContact('Sarah');
   if (sarah) {
-    const anniv = new Date(today);
-    anniv.setDate(anniv.getDate() + 7);
     events.push({
       contactId: sarah.id,
       eventType: 'ANNIVERSARY',
-      eventDate: anniv.toISOString().split('T')[0],
+      eventDate: getDate(5),
       originalYear: 2020,
       recurrenceRule: 'YEARLY',
       significanceLevel: 'HIGH',
@@ -166,16 +228,14 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
     });
   }
   
-  // Michael's promotion in 10 days
-  const michael = contacts.find(c => c.fullName === 'Michael Chen');
+  // Michael's promotion in 8 days
+  const michael = findContact('Michael');
   if (michael) {
-    const promo = new Date(today);
-    promo.setDate(promo.getDate() + 10);
     events.push({
       contactId: michael.id,
       eventType: 'PROMOTION',
       eventName: 'SVP Announcement',
-      eventDate: promo.toISOString().split('T')[0],
+      eventDate: getDate(8),
       recurrenceRule: 'ONCE',
       significanceLevel: 'HIGH',
       automationOverride: 'FORCE_REVIEW',
@@ -183,16 +243,14 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
     });
   }
   
-  // Emma's graduation in 14 days
-  const emma = contacts.find(c => c.fullName === 'Emma Thompson');
+  // Emma's graduation in 12 days
+  const emma = findContact('Emma');
   if (emma) {
-    const grad = new Date(today);
-    grad.setDate(grad.getDate() + 14);
     events.push({
       contactId: emma.id,
       eventType: 'GRADUATION',
       eventName: 'Medical School Graduation',
-      eventDate: grad.toISOString().split('T')[0],
+      eventDate: getDate(12),
       recurrenceRule: 'ONCE',
       significanceLevel: 'HIGH',
       automationOverride: 'FORCE_REVIEW',
@@ -201,15 +259,13 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
     });
   }
   
-  // David's birthday in 21 days
-  const david = contacts.find(c => c.fullName === 'David Rodriguez');
+  // David's birthday in 18 days
+  const david = findContact('David');
   if (david) {
-    const bday = new Date(today);
-    bday.setDate(bday.getDate() + 21);
     events.push({
       contactId: david.id,
       eventType: 'BIRTHDAY',
-      eventDate: bday.toISOString().split('T')[0],
+      eventDate: getDate(18),
       originalYear: 1988,
       recurrenceRule: 'YEARLY',
       significanceLevel: 'LOW',
@@ -218,20 +274,112 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
     });
   }
   
-  // Aisha's new job in 5 days
-  const aisha = contacts.find(c => c.fullName === 'Aisha Patel');
+  // Aisha's new job in 3 days
+  const aisha = findContact('Aisha');
   if (aisha) {
-    const newJob = new Date(today);
-    newJob.setDate(newJob.getDate() + 5);
     events.push({
       contactId: aisha.id,
       eventType: 'NEW_JOB',
       eventName: 'CTO at TechVentures',
-      eventDate: newJob.toISOString().split('T')[0],
+      eventDate: getDate(3),
       recurrenceRule: 'ONCE',
       significanceLevel: 'MEDIUM',
       automationOverride: 'USE_CONTACT_DEFAULT',
       reminderDaysBefore: [1],
+    });
+  }
+  
+  // Robert's birthday in 25 days
+  const robert = findContact('Robert');
+  if (robert) {
+    events.push({
+      contactId: robert.id,
+      eventType: 'BIRTHDAY',
+      eventDate: getDate(25),
+      originalYear: 1975,
+      recurrenceRule: 'YEARLY',
+      significanceLevel: 'MEDIUM',
+      automationOverride: 'FORCE_REVIEW',
+      reminderDaysBefore: [1, 7],
+    });
+  }
+  
+  // Jennifer's work anniversary in 7 days
+  const jennifer = findContact('Jennifer');
+  if (jennifer) {
+    events.push({
+      contactId: jennifer.id,
+      eventType: 'CUSTOM',
+      eventName: '3 Years at Company',
+      eventDate: getDate(7),
+      recurrenceRule: 'YEARLY',
+      significanceLevel: 'MEDIUM',
+      automationOverride: 'USE_CONTACT_DEFAULT',
+      reminderDaysBefore: [1],
+      notes: 'Work anniversary celebration',
+    });
+  }
+  
+  // Alex's new baby in 15 days
+  const alex = findContact('Alex Thompson');
+  if (alex) {
+    events.push({
+      contactId: alex.id,
+      eventType: 'NEW_BABY',
+      eventName: 'Baby Shower',
+      eventDate: getDate(15),
+      recurrenceRule: 'ONCE',
+      significanceLevel: 'HIGH',
+      automationOverride: 'FORCE_REVIEW',
+      reminderDaysBefore: [1, 7],
+      notes: 'First child! Need to get a gift.',
+    });
+  }
+  
+  // Olivia's house warming in 22 days
+  const olivia = findContact('Olivia');
+  if (olivia) {
+    events.push({
+      contactId: olivia.id,
+      eventType: 'HOUSE_WARMING',
+      eventName: 'New Apartment Party',
+      eventDate: getDate(22),
+      recurrenceRule: 'ONCE',
+      significanceLevel: 'MEDIUM',
+      automationOverride: 'USE_CONTACT_DEFAULT',
+      reminderDaysBefore: [1, 7],
+      notes: 'Moved to downtown',
+    });
+  }
+  
+  // Marcus birthday in 30 days
+  const marcus = findContact('Marcus');
+  if (marcus) {
+    events.push({
+      contactId: marcus.id,
+      eventType: 'BIRTHDAY',
+      eventDate: getDate(30),
+      originalYear: 1970,
+      recurrenceRule: 'YEARLY',
+      significanceLevel: 'MEDIUM',
+      automationOverride: 'FORCE_REVIEW',
+      reminderDaysBefore: [1, 7],
+    });
+  }
+  
+  // James needs reconnection - custom event
+  const james = findContact('James');
+  if (james) {
+    events.push({
+      contactId: james.id,
+      eventType: 'CUSTOM',
+      eventName: 'Reconnection Reminder',
+      eventDate: getDate(1),
+      recurrenceRule: 'ONCE',
+      significanceLevel: 'LOW',
+      automationOverride: 'USE_CONTACT_DEFAULT',
+      reminderDaysBefore: [0],
+      notes: 'Has been 6 months since last contact',
     });
   }
   
@@ -242,12 +390,8 @@ function generateDemoEvents(contacts: Contact[]): Omit<Event, 'id' | 'createdAt'
  * Seed the application with demo data
  */
 export function seedDemoData(): { contacts: number; events: number } {
-  // Check if data already exists
-  const existingContacts = storageService.loadContacts();
-  if (existingContacts.length > 0) {
-    console.log('Demo data already exists. Skipping seed.');
-    return { contacts: existingContacts.length, events: storageService.loadEvents().length };
-  }
+  // Clear existing data first for fresh demo
+  storageService.clearAllData();
   
   // Add contacts
   const addedContacts: Contact[] = [];
