@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GlassCard, ClickableGlassCard } from '@/components/ui/glass-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -18,6 +19,7 @@ import { ContactForm } from '@/components/forms/contact-form';
 import { ToastContainer, useToasts } from '@/components/ui/toast';
 import { cn, getHealthColor, getAutomationPolicyStyle } from '@/lib/utils';
 import { useContacts, useSelectedContact } from '@/bloc/contacts.bloc';
+import { useDrafts } from '@/bloc/drafts.bloc';
 import { 
   Users, 
   Plus, 
@@ -30,7 +32,9 @@ import {
   TrendingUp,
   TrendingDown,
   Trash2,
-  Edit
+  Edit,
+  MessageSquare,
+  Loader2
 } from 'lucide-react';
 import type { Contact } from '@/types';
 
@@ -43,8 +47,10 @@ const relationTypeColors: Record<string, string> = {
 };
 
 export function Contacts() {
+  const navigate = useNavigate();
   const { contacts, isLoading, addContact, updateContact, deleteContact } = useContacts();
   const { selectedContact, select, clear } = useSelectedContact();
+  const { generateDraft, isGenerating } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +99,21 @@ export function Contacts() {
   
   const handleContactClick = (contact: Contact) => {
     select(contact as Contact);
+  };
+  
+  const handleSendMessage = async () => {
+    if (!selectedContact) return;
+    
+    addToast({ type: 'info', message: `Generating draft for ${selectedContact.fullName}...` });
+    
+    const draft = await generateDraft(selectedContact.id);
+    
+    if (draft) {
+      addToast({ type: 'success', message: 'Draft created! Redirecting to War Room...' });
+      setTimeout(() => navigate('/review'), 1000);
+    } else {
+      addToast({ type: 'error', message: 'Failed to generate draft' });
+    }
   };
   
   if (isLoading) {
@@ -362,8 +383,22 @@ export function Contacts() {
                 
                 {/* Actions */}
                 <div className="space-y-2">
-                  <button className="w-full btn-neon-solid">
-                    Send Message
+                  <button 
+                    className="w-full btn-neon-solid flex items-center justify-center gap-2"
+                    onClick={handleSendMessage}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4" />
+                        Send Message
+                      </>
+                    )}
                   </button>
                   <button 
                     className="w-full btn-neon"

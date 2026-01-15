@@ -19,7 +19,6 @@ import { cn, getHealthColor } from '@/lib/utils';
 import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bloc/contacts.bloc';
 import { useEvents, calculateDaysUntil } from '@/bloc/events.bloc';
 import { useDrafts } from '@/bloc/drafts.bloc';
-import { seedDemoData } from '@/services/demo-data.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AlertTriangle, 
@@ -31,7 +30,6 @@ import {
   Gift,
   Heart,
   Plus,
-  Sparkles,
   Wand2,
   Loader2,
   X
@@ -40,24 +38,14 @@ import type { Contact } from '@/types';
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { contacts, isLoading: contactsLoading, refetch: refetchContacts } = useContacts();
-  const { events, isLoading: eventsLoading, refetch: refetchEvents } = useEvents();
-  const { drafts, isGenerating, generateDraft, refetch: refetchDrafts } = useDrafts();
+  const { contacts, isLoading: contactsLoading } = useContacts();
+  const { events, isLoading: eventsLoading } = useEvents();
+  const { drafts, isGenerating, generateDraft } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generateContactId, setGenerateContactId] = useState<string>('');
-  
-  const handleLoadDemoData = () => {
-    const result = seedDemoData();
-    if (result.contacts > 0) {
-      refetchContacts();
-      refetchEvents();
-      refetchDrafts();
-      addToast({ type: 'success', message: `Loaded ${result.contacts} contacts, ${result.events} events, and ${result.drafts} drafts` });
-    }
-  };
   
   const handleGenerateDraft = async () => {
     if (!generateContactId) {
@@ -250,22 +238,13 @@ export function Dashboard() {
                 <Users className="w-16 h-16 text-moon-dust/30 mx-auto mb-4" />
                 <h3 className="text-lg font-display font-semibold text-starlight mb-2">No contacts yet</h3>
                 <p className="text-moon-dust mb-6">Add contacts to see your relationship orbit</p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <button 
-                    className="btn-neon-solid flex items-center gap-2"
-                    onClick={() => navigate('/contacts')}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Contact
-                  </button>
-                  <button 
-                    className="btn-neon flex items-center gap-2"
-                    onClick={handleLoadDemoData}
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Load Demo Data
-                  </button>
-                </div>
+                <button 
+                  className="btn-neon-solid flex items-center gap-2"
+                  onClick={() => navigate('/contacts')}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Contact
+                </button>
               </div>
             )}
           </GlassCard>
