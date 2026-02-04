@@ -17,8 +17,9 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EventForm } from '@/components/forms/event-form';
 import { ToastContainer, useToasts } from '@/components/ui/toast';
-import { useEvents, calculateDaysUntil, countByEventType } from '@/bloc/events.bloc';
-import { useContacts } from '@/bloc/contacts.bloc';
+import { useEvents, calculateDaysUntil, countByEventType } from '@/bloc/events/events.bloc';
+import { formatEventDate } from '@/utils/date-logic';
+import { useContacts } from '@/bloc/contacts/contacts.bloc';
 import { Calendar as CalendarIcon, Plus, Filter } from 'lucide-react';
 import type { Event, EventWithContact } from '@/types';
 
@@ -179,12 +180,7 @@ export function Calendar() {
                   <div>
                     <span className="text-xs text-moon-dust">Date</span>
                     <p className="text-sm font-medium text-starlight">
-                      {new Date(selectedEvent.eventDate).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {formatEventDate(selectedEvent.eventDate)}
                     </p>
                   </div>
                   <div>

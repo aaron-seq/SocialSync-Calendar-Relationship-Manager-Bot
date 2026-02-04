@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { GlassCard } from '@/components/ui/glass-card'
 import { cn, getAutomationPolicyStyle } from '@/lib/utils'
-import { Check, Edit3, X, Sparkles, Image } from 'lucide-react'
+import { Check, Edit3, X, Image } from 'lucide-react'
+import { AiRationaleCard } from '@/components/ui/ai-rationale-card'
 
 interface DraftCardProps {
   id: string
@@ -112,10 +113,11 @@ export function DraftCard({
         
         {/* AI Rationale */}
         {aiRationale && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-neon-violet/10 border border-neon-violet/20 mb-4">
-            <Sparkles className="w-4 h-4 text-neon-violet mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-moon-dust leading-relaxed">{aiRationale}</p>
-          </div>
+          <AiRationaleCard 
+            rationale={aiRationale} 
+            confidenceScore={88} // Mock score for now, could be passed in props
+            className="mb-4"
+          />
         )}
         
         {/* Actions */}

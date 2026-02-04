@@ -17,11 +17,14 @@ const navItems = [
   { path: '/contacts', icon: Users, label: 'Contacts' },
 ]
 
+import { AnimatedBackground } from '@/components/ui/animated-background'
+
 export function DashboardLayout() {
   return (
-    <div className="flex min-h-screen bg-gradient-void">
+    <div className="flex min-h-screen relative overflow-hidden bg-void-black">
+      <AnimatedBackground />
       {/* Sidebar */}
-      <aside className="glass-sidebar w-20 lg:w-64 p-4 flex flex-col">
+      <aside className="relative z-10 glass-sidebar w-20 lg:w-64 p-4 flex flex-col">
         {/* Logo */}
         <div className="flex items-center gap-3 px-3 py-4 mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-neon flex items-center justify-center">
@@ -65,7 +68,7 @@ export function DashboardLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="sticky-glass h-16 px-6 flex items-center justify-between border-b border-white/5">
           <div>

@@ -16,9 +16,9 @@ import { OrbitView } from '@/components/orbit-view/orbit-view';
 import { GlassCard } from '@/components/ui/glass-card';
 import { ToastContainer, useToasts } from '@/components/ui/toast';
 import { cn, getHealthColor } from '@/lib/utils';
-import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bloc/contacts.bloc';
-import { useEvents, calculateDaysUntil } from '@/bloc/events.bloc';
-import { useDrafts } from '@/bloc/drafts.bloc';
+import { useContacts, countCriticalContacts, calculateAverageHealth } from '@/bloc/contacts/contacts.bloc';
+import { useEvents, calculateDaysUntil } from '@/bloc/events/events.bloc';
+import { useDrafts } from '@/bloc/messages/messages.bloc';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   AlertTriangle, 

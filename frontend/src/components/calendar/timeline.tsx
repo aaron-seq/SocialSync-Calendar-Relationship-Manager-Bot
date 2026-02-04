@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { format, isToday, isTomorrow } from 'date-fns'
+import { format, isToday, isTomorrow, parseISO } from 'date-fns'
 import { GlassCard } from '@/components/ui/glass-card'
 import { cn } from '@/lib/utils'
 import { Gift, Heart, Briefcase, GraduationCap, Home, Baby, Star, Calendar as CalendarIcon } from 'lucide-react'
@@ -54,7 +54,7 @@ export function Timeline({ events, onEventClick }: TimelineProps) {
       
       <div className="space-y-8">
         {sortedDates.map((date, dateIndex) => {
-          const dateObj = new Date(date)
+          const dateObj = parseISO(date)
           const isDateToday = isToday(dateObj)
           const isDateTomorrow = isTomorrow(dateObj)
           

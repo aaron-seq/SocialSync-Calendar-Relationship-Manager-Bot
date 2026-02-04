@@ -18,8 +18,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ContactForm } from '@/components/forms/contact-form';
 import { ToastContainer, useToasts } from '@/components/ui/toast';
 import { cn, getHealthColor, getAutomationPolicyStyle } from '@/lib/utils';
-import { useContacts, useSelectedContact } from '@/bloc/contacts.bloc';
-import { useDrafts } from '@/bloc/drafts.bloc';
+import { useContacts, useSelectedContact } from '@/bloc/contacts/contacts.bloc';
+import { useDrafts } from '@/bloc/messages/messages.bloc';
 import { 
   Users, 
   Plus, 

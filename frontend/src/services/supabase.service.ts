@@ -61,9 +61,40 @@ export function getSupabaseClient(): SupabaseClient {
  * Creates a mock client for development when Supabase is not configured.
  * This allows the UI to function with demo data.
  */
+/**
+ * Creates a mock client for development when Supabase is not configured.
+ * This allows the UI to function with demo data.
+ */
 function createMockClient(): SupabaseClient {
-  // Return minimal mock - actual implementation would need full mock
-  return {} as SupabaseClient;
+  const mockChain = {
+    select: () => mockChain,
+    insert: () => mockChain,
+    update: () => mockChain,
+    delete: () => mockChain,
+    eq: () => mockChain,
+    order: () => mockChain,
+    range: () => mockChain,
+    single: () => Promise.resolve({ data: null, error: null }),
+    limit: () => mockChain,
+    gte: () => mockChain,
+    on: () => mockChain,
+    subscribe: () => mockChain,
+    unsubscribe: () => mockChain,
+    then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
+  };
+
+  return {
+    from: () => mockChain,
+    channel: () => ({
+      on: () => ({ subscribe: () => {} }),
+      subscribe: () => {},
+      unsubscribe: () => {},
+    }),
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+  } as unknown as SupabaseClient;
 }
 
 // =============================================================================

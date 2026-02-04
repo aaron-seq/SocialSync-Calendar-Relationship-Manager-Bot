@@ -17,7 +17,7 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ToastContainer, useToasts } from '@/components/ui/toast';
 import { cn, getHealthColor } from '@/lib/utils';
-import { useDrafts, filterByStatus, countByStatus } from '@/bloc/drafts.bloc';
+import { useDrafts, filterByStatus, countByStatus } from '@/bloc/messages/messages.bloc';
 import { 
   MessageSquare, 
   Clock, 
@@ -37,7 +37,7 @@ interface EditingDraft {
 }
 
 export function ReviewQueue() {
-  const { drafts, isLoading, approve, reject, edit } = useDrafts();
+  const { drafts, isLoading, approveDraft, rejectDraft, updateDraft } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [filter, setFilter] = useState<FilterType>('all');
@@ -45,14 +45,22 @@ export function ReviewQueue() {
   const [editingDraft, setEditingDraft] = useState<EditingDraft | null>(null);
   const [editContent, setEditContent] = useState('');
   
-  const filteredDrafts = filterByStatus(drafts, filter);
+  const getStatusFromFilter = (f: FilterType) => {
+    switch (f) {
+      case 'review': return 'WAITING_FOR_REVIEW';
+      case 'approved': return 'APPROVED_WAITING';
+      default: return 'all';
+    }
+  };
+
+  const filteredDrafts = filterByStatus(drafts, getStatusFromFilter(filter));
   const statusCounts = countByStatus(drafts);
   
   const pendingCount = statusCounts['WAITING_FOR_REVIEW'] || 0;
   const approvedCount = statusCounts['APPROVED_WAITING'] || 0;
   
   const handleApprove = async (id: string) => {
-    await approve(id);
+    await approveDraft(id);
     addToast({ type: 'success', message: 'Draft approved and scheduled' });
   };
   
@@ -70,7 +78,7 @@ export function ReviewQueue() {
   
   const handleSaveEdit = async () => {
     if (editingDraft && editContent.trim()) {
-      await edit(editingDraft.id, editContent.trim());
+      await updateDraft(editingDraft.id, editContent.trim());
       addToast({ type: 'success', message: 'Draft updated successfully' });
       setEditingDraft(null);
       setEditContent('');
@@ -83,7 +91,7 @@ export function ReviewQueue() {
   };
   
   const handleReject = async (id: string) => {
-    await reject(id);
+    await rejectDraft(id);
     addToast({ type: 'success', message: 'Draft cancelled' });
   };
   

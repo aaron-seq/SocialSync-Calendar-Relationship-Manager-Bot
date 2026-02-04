@@ -5,7 +5,10 @@ import { ReviewQueue } from './pages/review-queue'
 import { Calendar } from './pages/calendar'
 import { Contacts } from './pages/contacts'
 
+import { useReminders } from '@/hooks/useReminders'
+
 function App() {
+  useReminders(); // Initialize reminders
   return (
     <Routes>
       <Route element={<DashboardLayout />}>

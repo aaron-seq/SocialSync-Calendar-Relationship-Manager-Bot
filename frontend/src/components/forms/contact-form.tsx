@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/modal';
 import { cn } from '@/lib/utils';
 import { User, Phone, Mail, Instagram, Heart } from 'lucide-react';
 import type { Contact, RelationType, AutoPolicy, Channel } from '@/types';
+import { suggestAutoPolicy } from '@/utils/relationship-math';
 import { logger } from '@/lib/logger';
 
 interface ContactFormProps {
@@ -357,7 +358,13 @@ export function ContactForm({ isOpen, onClose, onSubmit, editContact }: ContactF
               min="1"
               max="10"
               value={intimacyLevel}
-              onChange={(e) => setIntimacyLevel(Number(e.target.value))}
+              onChange={(e) => {
+                const newLevel = Number(e.target.value);
+                setIntimacyLevel(newLevel);
+                // Suggest policy based on new level
+                const suggested = suggestAutoPolicy(newLevel);
+                setDefaultAutoPolicy(suggested);
+              }}
               className="w-full accent-neon-violet"
             />
             <div className="flex justify-between text-xs text-moon-dust/50">
