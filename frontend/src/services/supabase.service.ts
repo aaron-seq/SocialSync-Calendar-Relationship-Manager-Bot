@@ -26,8 +26,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
-// =============================================================================
-// CLIENT INITIALIZATION
+// Client initialization
 // =============================================================================
 
 let supabaseClient: SupabaseClient | null = null;
@@ -39,9 +38,8 @@ let supabaseClient: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseClient) {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      logger.warn('Supabase credentials not configured, using demo mode');
-      // Return a mock client for development without Supabase
-      return createMockClient();
+      logger.error('Supabase credentials not configured');
+      throw new Error('Supabase credentials not configured. Please Check your .env file.');
     }
     
     supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -55,46 +53,6 @@ export function getSupabaseClient(): SupabaseClient {
   }
   
   return supabaseClient;
-}
-
-/**
- * Creates a mock client for development when Supabase is not configured.
- * This allows the UI to function with demo data.
- */
-/**
- * Creates a mock client for development when Supabase is not configured.
- * This allows the UI to function with demo data.
- */
-function createMockClient(): SupabaseClient {
-  const mockChain = {
-    select: () => mockChain,
-    insert: () => mockChain,
-    update: () => mockChain,
-    delete: () => mockChain,
-    eq: () => mockChain,
-    order: () => mockChain,
-    range: () => mockChain,
-    single: () => Promise.resolve({ data: null, error: null }),
-    limit: () => mockChain,
-    gte: () => mockChain,
-    on: () => mockChain,
-    subscribe: () => mockChain,
-    unsubscribe: () => mockChain,
-    then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
-  };
-
-  return {
-    from: () => mockChain,
-    channel: () => ({
-      on: () => ({ subscribe: () => {} }),
-      subscribe: () => {},
-      unsubscribe: () => {},
-    }),
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    },
-  } as unknown as SupabaseClient;
 }
 
 // =============================================================================
