@@ -12,7 +12,7 @@ import {
   calculateAverageHealth,
   filterContactsByQuery,
   sortContacts,
-} from '@/bloc/contacts.bloc';
+} from '@/bloc/contacts/contacts.bloc';
 import type { Contact } from '@/types';
 
 // =============================================================================

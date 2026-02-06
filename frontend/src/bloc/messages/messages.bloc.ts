@@ -128,13 +128,13 @@ export function useMessages() {
     }
   }, []);
 
-  const generateDraft = useCallback(async (contactId: string, context?: string) => {
+  const generateDraft = useCallback(async (contactId: string) => {
     setState(prev => ({ ...prev, isGenerating: true }));
     try {
       // Clean up previous implementation that used 'context' loosely
       // If context looks like an ID, treat it as event ID? 
       // For now, pass undefined for eventId unless explicitly handled
-      const result = await MessagesSDK.generateDraft(contactId, undefined, context);
+      const result = await MessagesSDK.generateDraft(contactId, undefined);
       
       if (!result.success) {
         throw result.error;
