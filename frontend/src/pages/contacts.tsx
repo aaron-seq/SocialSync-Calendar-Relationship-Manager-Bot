@@ -74,26 +74,35 @@ export function Contacts() {
     setIsFormOpen(true);
   };
   
-  const handleFormSubmit = (contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editingContact) {
-      updateContact(editingContact.id, contactData);
-      addToast({ type: 'success', message: 'Contact updated successfully' });
-      // Update selected contact if it was edited
-      if (selectedContact?.id === editingContact.id) {
-        select({ ...selectedContact, ...contactData } as Contact);
+  const handleFormSubmit = async (contactData: Omit<Contact, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Await before reporting success — these hit the network and can fail.
+    try {
+      if (editingContact) {
+        await updateContact(editingContact.id, contactData);
+        addToast({ type: 'success', message: 'Contact updated successfully' });
+        // Update selected contact if it was edited
+        if (selectedContact?.id === editingContact.id) {
+          select({ ...selectedContact, ...contactData } as Contact);
+        }
+      } else {
+        await addContact(contactData);
+        addToast({ type: 'success', message: 'Contact added successfully' });
       }
-    } else {
-      addContact(contactData);
-      addToast({ type: 'success', message: 'Contact added successfully' });
+    } catch (err) {
+      addToast({ type: 'error', message: (err as Error).message || 'Could not save contact' });
     }
   };
-  
-  const handleDeleteContact = (id: string) => {
-    deleteContact(id);
-    addToast({ type: 'success', message: 'Contact deleted' });
-    setShowDeleteConfirm(null);
-    if (selectedContact?.id === id) {
-      clear();
+
+  const handleDeleteContact = async (id: string) => {
+    try {
+      await deleteContact(id);
+      addToast({ type: 'success', message: 'Contact deleted' });
+      setShowDeleteConfirm(null);
+      if (selectedContact?.id === id) {
+        clear();
+      }
+    } catch (err) {
+      addToast({ type: 'error', message: (err as Error).message || 'Could not delete contact' });
     }
   };
   
@@ -135,7 +144,9 @@ export function Contacts() {
             <Users className="w-6 h-6 text-neon-violet" />
             Contacts
           </h1>
-          <p className="text-moon-dust mt-1">{contacts.length} people in your network</p>
+          <p className="text-moon-dust mt-1">
+            {contacts.length} {contacts.length === 1 ? 'person' : 'people'} in your network
+          </p>
         </div>
         
         <button className="btn-neon-solid flex items-center gap-2" onClick={handleAddContact}>

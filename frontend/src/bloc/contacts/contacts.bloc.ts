@@ -139,18 +139,16 @@ export function useContacts() {
     }
   }, [fetchContacts]);
 
-  const updateContact = useCallback(async (_id: string, _updates: Partial<Contact>) => {
-    // For now, partial update logic via SDK would be ideal.
-    // Assuming createContact can be adapted or specific update method exists.
-    // TODO: Add updateContact to ContactsSDK
-    logger.warn('updateContact not fully implemented in SDK yet');
+  const updateContact = useCallback(async (id: string, updates: Partial<Contact>) => {
+    const result = await ContactsSDK.updateContact(id, updates);
+    if (!result.success) throw result.error;
     fetchContacts();
-    return null;
+    return result.data;
   }, [fetchContacts]);
 
-  const deleteContact = useCallback(async (_id: string) => {
-    // TODO: Add deleteContact to SDK
-    logger.warn('deleteContact not fully implemented in SDK yet');
+  const deleteContact = useCallback(async (id: string) => {
+    const result = await ContactsSDK.deleteContact(id);
+    if (!result.success) throw result.error;
     fetchContacts();
     return true;
   }, [fetchContacts]);
