@@ -27,7 +27,7 @@ export function useReminders() {
           if (Notification.permission === 'granted') {
             new Notification(`Upcoming Event: ${event.eventName || event.eventType}`, {
               body: `${daysUntil === 0 ? 'Today' : `In ${daysUntil} days`}: ${event.eventType} for ${event.contactName}`,
-              icon: '/icon.png' // Placeholder
+              icon: '/icon-192.png'
             });
           }
           

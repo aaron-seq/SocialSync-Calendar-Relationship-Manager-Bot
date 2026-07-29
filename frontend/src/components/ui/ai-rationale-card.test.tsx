@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { AiRationaleCard } from './ai-rationale-card';
 
@@ -8,14 +8,19 @@ describe('AiRationaleCard', () => {
     expect(screen.getByText('"Test rationale"')).toBeInTheDocument();
   });
 
-  it('displays confidence score', () => {
-    render(<AiRationaleCard rationale="Test" confidenceScore={95} />);
-    expect(screen.getByText('95%')).toBeInTheDocument();
-    expect(screen.getByText('95%')).toHaveClass('text-cyber-emerald');
+  it('shows the model that generated the draft', () => {
+    render(<AiRationaleCard rationale="Test" modelUsed="llama-3.3-70b-versatile" />);
+    expect(screen.getByText('Model: llama-3.3-70b-versatile')).toBeInTheDocument();
   });
 
-  it('displays correct color for low confidence', () => {
-    render(<AiRationaleCard rationale="Test" confidenceScore={50} />);
-    expect(screen.getByText('50%')).toHaveClass('text-toxic-rose');
+  it('flags template fallbacks so they are not mistaken for model output', () => {
+    render(<AiRationaleCard rationale="Test" modelUsed="fallback-template" />);
+    expect(screen.getByText('Template')).toBeInTheDocument();
+  });
+
+  it('does not claim a model when none was recorded', () => {
+    render(<AiRationaleCard rationale="Test" />);
+    expect(screen.getByText('Model: unknown')).toBeInTheDocument();
+    expect(screen.queryByText('Template')).not.toBeInTheDocument();
   });
 });

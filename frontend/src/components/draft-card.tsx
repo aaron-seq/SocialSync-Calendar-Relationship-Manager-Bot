@@ -13,6 +13,8 @@ interface DraftCardProps {
   generatedContent: string
   generatedGifUrl?: string
   aiRationale?: string
+  /** message_queue.ai_model_used — distinguishes real generations from templates. */
+  aiModelUsed?: string
   status: 'WAITING_FOR_REVIEW' | 'APPROVED_WAITING' | 'PENDING_GENERATION'
   scheduledTime?: string
   isSelected?: boolean
@@ -30,6 +32,7 @@ export function DraftCard({
   generatedContent,
   generatedGifUrl,
   aiRationale,
+  aiModelUsed,
   status,
   scheduledTime,
   isSelected,
@@ -113,9 +116,9 @@ export function DraftCard({
         
         {/* AI Rationale */}
         {aiRationale && (
-          <AiRationaleCard 
-            rationale={aiRationale} 
-            confidenceScore={88} // Mock score for now, could be passed in props
+          <AiRationaleCard
+            rationale={aiRationale}
+            modelUsed={aiModelUsed}
             className="mb-4"
           />
         )}
