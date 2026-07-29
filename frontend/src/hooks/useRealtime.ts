@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { getSupabaseClient } from '@/services/supabase.service';
+import { getSupabaseClient, isSupabaseConfigured } from '@/services/supabase.service';
 import { logger } from '@/lib/logger';
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
@@ -29,6 +28,10 @@ export function useRealtime({
   onDelete,
 }: UseRealtimeOptions) {
   useEffect(() => {
+    // Without credentials getSupabaseClient() throws, and a throw in an
+    // effect unmounts the entire app. Skip realtime instead.
+    if (!isSupabaseConfigured()) return;
+
     const client = getSupabaseClient();
     const channelId = channelName || `public:${table}`;
     

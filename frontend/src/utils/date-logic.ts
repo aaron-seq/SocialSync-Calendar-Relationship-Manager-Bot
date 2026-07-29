@@ -32,7 +32,7 @@ export function expandRecurringEvents(
       const endYear = end.getFullYear();
       
       for (let year = startYear; year <= endYear; year++) {
-        let instanceDate = setYear(eventDate, year);
+        const instanceDate = setYear(eventDate, year);
         
         // Handle leap years if needed (Feb 29 -> Feb 28 or Mar 1) 
         // date-fns setYear handles this reasonably well
