@@ -49,3 +49,10 @@ test-results/
 *.log
 *.cache
 .eslintcache
+
+# Tool output scratch
+test-output.txt
+typecheck_output.txt
+
+# Playwright MCP scratch
+.playwright-mcp/
