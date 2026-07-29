@@ -5,11 +5,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { 
-  generateDraftContent, 
+import {
+  generateDraftContent,
   generateDraftWithContext,
   buildPrompt,
-  isOllamaAvailable 
+  isLLMConfigured
 } from '@/services/llm.service';
 import type { Contact, Event } from '@/types';
 
@@ -87,41 +87,16 @@ describe('buildPrompt', () => {
 });
 
 // =============================================================================
-// TESTS: isOllamaAvailable
+// TESTS: isLLMConfigured
 // =============================================================================
 
-describe('isOllamaAvailable', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+describe('isLLMConfigured', () => {
+  it('should return true when an API key is present', () => {
+    expect(isLLMConfigured('gsk_testkey')).toBe(true);
   });
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('should return true when Ollama responds with OK', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-    });
-
-    const result = await isOllamaAvailable();
-    expect(result).toBe(true);
-  });
-
-  it('should return false when Ollama responds with error', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: false,
-    });
-
-    const result = await isOllamaAvailable();
-    expect(result).toBe(false);
-  });
-
-  it('should return false when fetch throws', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Network error'));
-
-    const result = await isOllamaAvailable();
-    expect(result).toBe(false);
+  it('should return false when the API key is empty', () => {
+    expect(isLLMConfigured('')).toBe(false);
   });
 });
 
@@ -138,11 +113,10 @@ describe('generateDraftContent', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should use fallback template when Ollama is unavailable', async () => {
-    // Mock Ollama as unavailable
+  it('should use fallback template when the API is unreachable', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Connection refused'));
 
-    const result = await generateDraftContent(mockContact, mockEvent);
+    const result = await generateDraftContent(mockContact, mockEvent, { apiKey: 'gsk_test' });
 
     expect(result.success).toBe(true);
     expect(result.content).toContain('Pri'); // Uses nickname
@@ -150,37 +124,57 @@ describe('generateDraftContent', () => {
     expect(result.modelUsed).toBe('fallback-template');
   });
 
-  it.skip('should generate personalized content when Ollama is available', async () => {
-    // NOTE: This test is skipped as it requires integration testing with a live Ollama instance.
-    // The fallback template tests validate the core logic; Ollama integration is best tested manually.
-    
-    // First call: isOllamaAvailable check
-    (global.fetch as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({ ok: true })
-      // Second call: actual generation
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          model: 'llama3.2',
-          response: JSON.stringify({
-            message: 'Happy Birthday Priya! Hope you have an amazing day!',
-            rationale: 'Warm, friendly tone for close friend'
-          }),
-          done: true,
-        }),
-      });
+  it('should use fallback template when no API key is configured', async () => {
+    const result = await generateDraftContent(mockContact, mockEvent, { apiKey: '' });
 
-    const result = await generateDraftContent(mockContact, mockEvent);
+    expect(result.modelUsed).toBe('fallback-template');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('should return the model completion when Groq responds', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        model: 'llama-3.3-70b-versatile',
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                message: 'Happy Birthday Pri! Hope today is wonderful.',
+                rationale: 'Warm, playful tone for a close friend.',
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const result = await generateDraftContent(mockContact, mockEvent, { apiKey: 'gsk_test' });
 
     expect(result.success).toBe(true);
-    expect(result.content).toContain('Happy Birthday');
-    expect(result.modelUsed).toBe('llama3.2');
+    expect(result.content).toBe('Happy Birthday Pri! Hope today is wonderful.');
+    expect(result.rationale).toContain('close friend');
+    expect(result.modelUsed).toBe('llama-3.3-70b-versatile');
+  });
+
+  it('should fall back when Groq returns a non-OK status', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      text: async () => 'invalid api key',
+    });
+
+    const result = await generateDraftContent(mockContact, mockEvent, { apiKey: 'gsk_bad' });
+
+    expect(result.modelUsed).toBe('fallback-template');
+    expect(result.error).toContain('401');
   });
 
   it('should handle general check-in when no event provided', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Connection refused'));
 
-    const result = await generateDraftContent(mockContact, null);
+    const result = await generateDraftContent(mockContact, null, { apiKey: 'gsk_test' });
 
     expect(result.success).toBe(true);
     expect(result.content).toContain('Pri');
@@ -204,7 +198,9 @@ describe('generateDraftWithContext', () => {
   it('should generate draft with custom context', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Connection refused'));
 
-    const result = await generateDraftWithContext(mockContact, 'Congrats on finishing the marathon!');
+    const result = await generateDraftWithContext(mockContact, 'Congrats on finishing the marathon!', {
+      apiKey: 'gsk_test',
+    });
 
     expect(result.success).toBe(true);
     expect(result.content).toContain('Pri');
