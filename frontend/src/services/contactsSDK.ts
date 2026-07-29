@@ -1,5 +1,5 @@
 
-import { getSupabaseClient } from './supabase.service';
+import { getSupabaseClient, getUserId } from './supabase.service';
 import { telemetry } from '@/utils/telemetry';
 import { calculateHealthScore, calculateGhostingRisk } from '@/utils/relationship-math';
 import type { Contact } from '@/types';
@@ -46,8 +46,12 @@ export class ContactsSDK {
   static async createContact(contactData: Partial<Contact>): Promise<SDKResponse<Contact>> {
     return telemetry.measure('ContactsSDK.createContact', async () => {
       try {
-        // Prepare data for DB (snake_case conversion if needed)
-        const dbPayload = this.mapContactToDatabase(contactData);
+        // contacts.user_id is NOT NULL with no DB default, and RLS checks
+        // auth.uid() = user_id, so the insert must carry it explicitly.
+        const userId = await getUserId();
+        if (!userId) throw new Error('Not signed in');
+
+        const dbPayload = { ...this.mapContactToDatabase(contactData), user_id: userId };
 
         const { data, error } = await this.client
           .from('contacts')
@@ -66,6 +70,59 @@ export class ContactsSDK {
       } catch (err) {
         const error = err as Error;
         telemetry.trackError(error, 'ContactsSDK.createContact');
+        return { success: false, data: null, error };
+      }
+    });
+  }
+
+  /**
+   * Update an existing contact. Only supplied fields are written.
+   */
+  static async updateContact(
+    id: string,
+    updates: Partial<Contact>
+  ): Promise<SDKResponse<Contact>> {
+    return telemetry.measure('ContactsSDK.updateContact', async () => {
+      try {
+        const payload = {
+          ...this.mapContactToDatabase(updates),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data, error } = await this.client
+          .from('contacts')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        telemetry.track('contact.updated', { contactId: id });
+        return { success: true, data: this.mapDatabaseToContact(data), error: null };
+      } catch (err) {
+        const error = err as Error;
+        telemetry.trackError(error, 'ContactsSDK.updateContact');
+        return { success: false, data: null, error };
+      }
+    });
+  }
+
+  /**
+   * Delete a contact. Events, drafts and logs cascade via the FK constraints
+   * in database/schema.sql.
+   */
+  static async deleteContact(id: string): Promise<SDKResponse<void>> {
+    return telemetry.measure('ContactsSDK.deleteContact', async () => {
+      try {
+        const { error } = await this.client.from('contacts').delete().eq('id', id);
+        if (error) throw error;
+
+        telemetry.track('contact.deleted', { contactId: id });
+        return { success: true, data: undefined, error: null };
+      } catch (err) {
+        const error = err as Error;
+        telemetry.trackError(error, 'ContactsSDK.deleteContact');
         return { success: false, data: null, error };
       }
     });
@@ -126,6 +183,9 @@ export class ContactsSDK {
       avatarUrl: row.avatar_url,
       relationType: row.relation_type,
       intimacyLevel: row.intimacy_level,
+      phoneNumber: row.phone_number,
+      email: row.email,
+      instagramHandle: row.instagram_handle,
       defaultChannel: row.default_channel,
       defaultAutoPolicy: row.default_auto_policy,
       healthScore: row.health_score, // Use DB value initially
@@ -137,24 +197,43 @@ export class ContactsSDK {
       updatedAt: row.updated_at
     };
 
-    // Dynamically recalculate to ensure freshness
-    // This handles the case where DB values are stale (no backend cron)
-    contact.healthScore = calculateHealthScore(contact);
+    // Recalculate from decay so stale DB values self-correct (no backend cron).
+    // Only meaningful once there's an interaction to decay from — without one
+    // the formula returns a flat 50 and would silently overwrite the score the
+    // user set on the contact form.
+    if (contact.lastInteractionDate) {
+      contact.healthScore = calculateHealthScore(contact);
+    }
     contact.ghostingRiskScore = calculateGhostingRisk(contact);
 
     return contact;
   }
 
   private static mapContactToDatabase(contact: Partial<Contact>): any {
-    // Only map fields that are present
+    // Every column the contact form collects. Anything missing here is
+    // silently dropped on save — the form accepts it and it never lands.
+    const columns: [keyof Contact, string][] = [
+      ['fullName', 'full_name'],
+      ['nickname', 'nickname'],
+      ['avatarUrl', 'avatar_url'],
+      ['relationType', 'relation_type'],
+      ['intimacyLevel', 'intimacy_level'],
+      ['phoneNumber', 'phone_number'],
+      ['email', 'email'],
+      ['instagramHandle', 'instagram_handle'],
+      ['defaultChannel', 'default_channel'],
+      ['defaultAutoPolicy', 'default_auto_policy'],
+      ['healthScore', 'health_score'],
+      ['lastInteractionDate', 'last_interaction_date'],
+      ['notes', 'notes'],
+      ['tags', 'tags'],
+    ];
+
     const payload: any = {};
-    if (contact.fullName) payload.full_name = contact.fullName;
-    if (contact.nickname) payload.nickname = contact.nickname;
-    if (contact.relationType) payload.relation_type = contact.relationType;
-    if (contact.intimacyLevel) payload.intimacy_level = contact.intimacyLevel;
-    if (contact.defaultChannel) payload.default_channel = contact.defaultChannel;
-    if (contact.defaultAutoPolicy) payload.default_auto_policy = contact.defaultAutoPolicy;
-    // ... add other fields as needed
+    for (const [field, column] of columns) {
+      // undefined means "not supplied"; null and 0 are meaningful values.
+      if (contact[field] !== undefined) payload[column] = contact[field];
+    }
     return payload;
   }
 }

@@ -2,7 +2,7 @@ import { getSupabaseClient } from './supabase.service';
 import { telemetry } from '@/utils/telemetry';
 import type { Draft, DraftWithContext, Contact } from '@/types';
 import type { SDKResponse } from './contactsSDK';
-import { AIService } from './ai.service';
+import { generateDraftContent } from './llm.service';
 
 export class MessagesSDK {
   private static get client() {
@@ -62,11 +62,10 @@ export class MessagesSDK {
           updatedAt: contact.updated_at
         };
 
-        const { content, rationale } = await AIService.generateMessage({
-          contact: contactModel,
-          event: event ? { ...event, eventType: event.event_type } : undefined, // Partial map
-          eventType: event?.event_type || 'CUSTOM',
-        });
+        const { content, rationale, modelUsed } = await generateDraftContent(
+          contactModel,
+          event ? { ...event, eventType: event.event_type } : null
+        );
 
         // 4. Determine Status (Auto-send logic)
         let status = 'WAITING_FOR_REVIEW';
@@ -84,7 +83,7 @@ export class MessagesSDK {
             generated_content: content,
             ai_rationale: rationale,
             status,
-            ai_model_used: 'template-v1',
+            ai_model_used: modelUsed || 'unknown',
             platform_used: contact.default_channel || 'WHATSAPP',
             scheduled_send_time: event?.event_date || new Date().toISOString() // Should actually be calculated
           })

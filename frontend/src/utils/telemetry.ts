@@ -15,12 +15,6 @@ type TelemetryEvent = {
   timestamp: number;
 };
 
-type PerformanceMetric = {
-  name: string;
-  duration: number;
-  properties?: Record<string, any>;
-  timestamp: number;
-};
 
 class TelemetryService {
   private static instance: TelemetryService;

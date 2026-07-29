@@ -1,14 +1,16 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { 
-  Orbit, 
-  Calendar, 
-  MessageSquare, 
-  Users, 
-  Settings, 
+import {
+  Orbit,
+  Calendar,
+  MessageSquare,
+  Users,
+  Settings,
   Sparkles,
-  Bell
 } from 'lucide-react'
+import { useContacts } from '@/bloc/contacts/contacts.bloc'
+import { useMessages } from '@/bloc/messages/messages.bloc'
+import { NotificationBell } from '@/components/ui/notification-bell'
 
 const navItems = [
   { path: '/', icon: Orbit, label: 'Orbit' },
@@ -20,6 +22,13 @@ const navItems = [
 import { AnimatedBackground } from '@/components/ui/animated-background'
 
 export function DashboardLayout() {
+  const { contacts } = useContacts()
+  const { drafts } = useMessages()
+
+  const criticalContacts = contacts.filter(c => c.healthScore < 40)
+  const pendingDrafts = drafts.filter(d => d.status === 'WAITING_FOR_REVIEW')
+  const attentionCount = criticalContacts.length + pendingDrafts.length
+
   return (
     <div className="flex min-h-screen relative overflow-hidden bg-void-black">
       <AnimatedBackground />
@@ -76,20 +85,17 @@ export function DashboardLayout() {
               Welcome back, Aaron
             </h1>
             <p className="text-sm text-moon-dust">
-              3 relationships need attention today
+              {attentionCount === 0
+                ? 'Everything looks healthy today'
+                : `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} attention today`}
             </p>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            {/* Notification Bell */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative p-2 rounded-xl hover:bg-white/5 transition-colors"
-            >
-              <Bell className="w-5 h-5 text-moon-dust" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-toxic-rose" />
-            </motion.button>
+            <NotificationBell
+              criticalContacts={criticalContacts}
+              pendingDrafts={pendingDrafts}
+            />
 
             {/* Avatar */}
             <div className="w-9 h-9 rounded-xl bg-gradient-neon flex items-center justify-center">

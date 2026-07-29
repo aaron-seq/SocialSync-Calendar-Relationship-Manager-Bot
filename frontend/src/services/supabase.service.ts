@@ -32,6 +32,17 @@ const RETRY_DELAY_MS = 1000;
 let supabaseClient: SupabaseClient | null = null;
 
 /**
+ * Whether Supabase credentials are present.
+ *
+ * Check this before calling getSupabaseClient() from anywhere that isn't
+ * inside a try/catch — the getter throws, and a throw inside a React render
+ * or effect unmounts the whole tree.
+ */
+export function isSupabaseConfigured(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+}
+
+/**
  * Get or create the Supabase client instance.
  * Uses singleton pattern to prevent multiple connections.
  */
@@ -53,6 +64,54 @@ export function getSupabaseClient(): SupabaseClient {
   }
   
   return supabaseClient;
+}
+
+// =============================================================================
+// SESSION
+// =============================================================================
+
+/**
+ * Ensure a Supabase session exists, signing in anonymously if not.
+ *
+ * Every RLS policy in database/schema.sql is `auth.uid() = user_id`, so
+ * without a session auth.uid() is NULL, reads return zero rows, and writes
+ * are rejected. Anonymous sign-in gives each browser a durable user id and
+ * lets those policies work unchanged.
+ *
+ * Requires "Anonymous sign-ins" enabled in Supabase Auth settings.
+ */
+export async function ensureSession(): Promise<Result<string>> {
+  try {
+    const client = getSupabaseClient();
+
+    const { data: existing } = await client.auth.getSession();
+    if (existing.session?.user?.id) {
+      return { success: true, data: existing.session.user.id };
+    }
+
+    const { data, error } = await client.auth.signInAnonymously();
+    if (error) throw new Error(error.message);
+    if (!data.user?.id) throw new Error('Anonymous sign-in returned no user');
+
+    logger.info('Anonymous session established', { userId: data.user.id });
+    return { success: true, data: data.user.id };
+  } catch (error) {
+    const err = error as Error;
+    logger.error('Failed to establish session', { error: err.message });
+    return {
+      success: false,
+      error: { code: 'AUTH_ERROR', message: err.message },
+    };
+  }
+}
+
+/**
+ * Current user id, or null when signed out. Needed to populate user_id on
+ * insert, since the column is NOT NULL and has no database default.
+ */
+export async function getUserId(): Promise<string | null> {
+  const { data } = await getSupabaseClient().auth.getSession();
+  return data.session?.user?.id ?? null;
 }
 
 // =============================================================================

@@ -3,6 +3,7 @@ import { EventsSDK } from '@/services/eventsSDK';
 import { logger } from '@/lib/logger';
 import { telemetry } from '@/utils/telemetry';
 import { useRealtime } from '@/hooks/useRealtime';
+import { isSupabaseConfigured } from '@/services/supabase.service';
 import type { Event, EventWithContact, SignificanceLevel } from '@/types';
 
 // =============================================================================
@@ -72,8 +73,15 @@ export function useEvents() {
   });
 
   const fetchEvents = useCallback(async () => {
+    // Nothing to fetch without a database. Avoids a throw-and-log storm on
+    // first paint when the app is unconfigured.
+    if (!isSupabaseConfigured()) {
+      setState({ events: [], isLoading: false, error: null });
+      return;
+    }
+
     setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+
     // SDK handles mapping and error normalization
     const result = await EventsSDK.getEvents();
 

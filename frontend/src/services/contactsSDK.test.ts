@@ -27,18 +27,19 @@ const mockQueryChain = createAwaitableMock();
 const mockFrom = vi.fn(() => mockQueryChain);
 
 // We'll spy on the specific methods we need to assert on
-const mockOrder = mockQueryChain.order;
 const mockInsert = mockQueryChain.insert;
 
 vi.mock('./supabase.service', () => ({
   getSupabaseClient: () => ({
     from: mockFrom,
   }),
+  // createContact needs a user id for the NOT NULL user_id column.
+  getUserId: vi.fn(async () => 'user-1'),
 }));
 
 vi.mock('@/utils/telemetry', () => ({
   telemetry: {
-    measure: vi.fn((name, fn) => fn()),
+    measure: vi.fn((_name: string, fn: () => unknown) => fn()),
     track: vi.fn(),
     trackError: vi.fn(),
   },

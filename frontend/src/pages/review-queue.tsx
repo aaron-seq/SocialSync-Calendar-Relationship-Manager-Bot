@@ -229,6 +229,7 @@ export function ReviewQueue() {
                 eventName={draft.eventName}
                 generatedContent={draft.editedContent || draft.generatedContent}
                 aiRationale={draft.aiRationale}
+                aiModelUsed={draft.aiModelUsed}
                 status={draft.status as 'WAITING_FOR_REVIEW' | 'APPROVED_WAITING' | 'PENDING_GENERATION'}
                 scheduledTime={draft.scheduledSendTime 
                   ? new Date(draft.scheduledSendTime).toLocaleString()
@@ -258,25 +259,33 @@ export function ReviewQueue() {
           <GlassCard className="p-5">
             <h3 className="font-medium text-starlight flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-neon-violet" />
-              AI Performance
+              Draft Activity
             </h3>
+            {/* Counts derived from the loaded queue. Approval/edit rates and
+                latency aren't persisted anywhere, so they aren't shown. */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-moon-dust">Approval Rate</span>
-                <span className="text-sm font-medium text-cyber-emerald">
-                  {drafts.length > 0 ? '94%' : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-moon-dust">Edit Rate</span>
+                <span className="text-sm text-moon-dust">Awaiting review</span>
                 <span className="text-sm font-medium text-solar-amber">
-                  {drafts.length > 0 ? '12%' : 'N/A'}
+                  {drafts.filter(d => d.status === 'WAITING_FOR_REVIEW').length}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-moon-dust">Avg Response Time</span>
+                <span className="text-sm text-moon-dust">Approved</span>
+                <span className="text-sm font-medium text-cyber-emerald">
+                  {drafts.filter(d => d.status === 'APPROVED_WAITING').length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-moon-dust">Edited by you</span>
                 <span className="text-sm font-medium text-starlight">
-                  {drafts.length > 0 ? '2.3s' : 'N/A'}
+                  {drafts.filter(d => d.userEdited).length}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-moon-dust">From templates</span>
+                <span className="text-sm font-medium text-starlight">
+                  {drafts.filter(d => d.aiModelUsed === 'fallback-template').length}
                 </span>
               </div>
             </div>

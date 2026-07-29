@@ -518,3 +518,32 @@ from contacts c
 left join events e on c.id = e.contact_id and e.event_date >= current_date
 left join message_queue mq on c.id = mq.contact_id
 group by c.id;
+
+-- =============================================================================
+-- 9. REALTIME
+-- =============================================================================
+-- The blocs subscribe via useRealtime, but Supabase only streams changes for
+-- tables in the supabase_realtime publication. Without this, subscriptions
+-- connect and never receive an event, so open tabs and other devices go stale.
+-- RLS still applies: subscribers only receive rows their policies allow.
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['contacts', 'events', 'message_queue', 'interaction_logs']
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table %I', t);
+    end if;
+  end loop;
+end $$;
+
+-- DELETE payloads carry only the primary key unless the replica identity is
+-- full, which leaves onDelete handlers unable to identify the removed row.
+alter table contacts replica identity full;
+alter table events replica identity full;
+alter table message_queue replica identity full;
