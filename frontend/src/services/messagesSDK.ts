@@ -1,8 +1,9 @@
 import { getSupabaseClient } from './supabase.service';
 import { telemetry } from '@/utils/telemetry';
-import type { Draft, DraftWithContext, Contact } from '@/types';
+import type { Draft, DraftWithContext, Contact, Event } from '@/types';
 import type { SDKResponse } from './contactsSDK';
 import { generateDraftContent } from './llm.service';
+import { determineDraftStatus } from '@/utils/automation-policy';
 
 export class MessagesSDK {
   private static get client() {
@@ -15,8 +16,7 @@ export class MessagesSDK {
    */
   static async generateDraft(
     contactId: string, 
-    eventId?: string, 
-    // context?: string // Not used currently
+    eventId?: string,
   ): Promise<SDKResponse<DraftWithContext>> {
     return telemetry.measure('MessagesSDK.generateDraft', async () => {
       try {
@@ -30,14 +30,32 @@ export class MessagesSDK {
         if (contactError || !contact) throw new Error('Contact not found');
 
         // 2. Fetch Event Context (if applicable)
-        let event: any = undefined;
+        let event: Event | null = null;
         if (eventId) {
-          const { data: eventData } = await this.client
+          const { data: eventData, error: eventError } = await this.client
             .from('events')
             .select('*')
             .eq('id', eventId)
             .single();
-          event = eventData;
+          if (eventError) throw new Error(`Could not load event: ${eventError.message}`);
+          if (!eventData || eventData.contact_id !== contactId) {
+            throw new Error('Event not found for this contact');
+          }
+          event = {
+            id: eventData.id,
+            contactId: eventData.contact_id,
+            eventType: eventData.event_type,
+            eventName: eventData.event_name,
+            eventDate: eventData.event_date,
+            originalYear: eventData.original_year,
+            recurrenceRule: eventData.recurrence_rule,
+            significanceLevel: eventData.significance_level,
+            automationOverride: eventData.automation_override,
+            reminderDaysBefore: eventData.reminder_days_before,
+            notes: eventData.notes,
+            createdAt: eventData.created_at,
+            updatedAt: eventData.updated_at,
+          };
         }
 
         // 3. Generate Content
@@ -49,7 +67,6 @@ export class MessagesSDK {
           nickname: contact.nickname,
           intimacyLevel: contact.intimacy_level,
           lastInteractionDate: contact.last_interaction_date,
-          // ... map other strictly required fields for AI
           relationType: contact.relation_type,
           defaultAutoPolicy: contact.default_auto_policy,
           healthScore: contact.health_score,
@@ -62,17 +79,14 @@ export class MessagesSDK {
           updatedAt: contact.updated_at
         };
 
-        const { content, rationale, modelUsed } = await generateDraftContent(
-          contactModel,
-          event ? { ...event, eventType: event.event_type } : null
-        );
+        const generation = await generateDraftContent(contactModel, event);
+        const { content, rationale, modelUsed } = generation;
+        if (!generation.success || typeof content !== 'string' || !content.trim()) {
+          throw new Error(generation.error || 'Draft generation returned no usable message');
+        }
 
         // 4. Determine Status (Auto-send logic)
-        let status = 'WAITING_FOR_REVIEW';
-        if (contact.default_auto_policy === 'ALWAYS_AUTO_SEND') {
-          status = 'APPROVED_WAITING';
-        }
-        // Could check event significance too
+        const status = determineDraftStatus(contactModel.defaultAutoPolicy, event, modelUsed);
 
         // 5. Save to Queue
         const { data: draft, error: insertError } = await this.client
@@ -85,14 +99,21 @@ export class MessagesSDK {
             status,
             ai_model_used: modelUsed || 'unknown',
             platform_used: contact.default_channel || 'WHATSAPP',
-            scheduled_send_time: event?.event_date || new Date().toISOString() // Should actually be calculated
+            scheduled_send_time: event?.eventDate || new Date().toISOString()
           })
           .select()
           .single();
 
         if (insertError) throw insertError;
 
-        return { success: true, data: this.mapDatabaseToDraft(draft) as DraftWithContext, error: null };
+        return { success: true, data: {
+          ...this.mapDatabaseToDraft(draft),
+          contactName: contactModel.fullName,
+          contactAvatar: contactModel.avatarUrl,
+          healthScore: contactModel.healthScore,
+          eventType: event?.eventType,
+          eventName: event?.eventName,
+        }, error: null };
       } catch (err) {
         telemetry.trackError(err as Error, 'MessagesSDK.generateDraft');
         return { success: false, data: null, error: err as Error };
@@ -151,12 +172,15 @@ export class MessagesSDK {
   static async approveDraft(draftId: string): Promise<SDKResponse<void>> {
     return telemetry.measure('MessagesSDK.approveDraft', async () => {
       try {
-        const { error } = await this.client
+        const { data, error } = await this.client
           .from('message_queue')
           .update({ status: 'APPROVED_WAITING' })
-          .eq('id', draftId);
+          .eq('id', draftId)
+          .eq('status', 'WAITING_FOR_REVIEW')
+          .select('id');
 
         if (error) throw error;
+        if (data?.length !== 1) throw new Error('Draft is unavailable or no longer awaiting review. Refresh the queue.');
         
         telemetry.track('message.approved', { draftId });
         return { success: true, data: undefined, error: null };
@@ -172,16 +196,22 @@ export class MessagesSDK {
   static async updateDraft(draftId: string, content: string): Promise<SDKResponse<void>> {
     return telemetry.measure('MessagesSDK.updateDraft', async () => {
       try {
-        const { error } = await this.client
+        const trimmedContent = content.trim();
+        if (!trimmedContent) throw new Error('Draft content cannot be empty');
+        const { data, error } = await this.client
           .from('message_queue')
           .update({ 
-            generated_content: content,
+            generated_content: trimmedContent,
             user_edited: true,
-            edited_content: content 
+            edited_content: trimmedContent,
+            status: 'WAITING_FOR_REVIEW',
           })
-          .eq('id', draftId);
+          .eq('id', draftId)
+          .in('status', ['WAITING_FOR_REVIEW', 'APPROVED_WAITING'])
+          .select('id');
 
         if (error) throw error;
+        if (data?.length !== 1) throw new Error('Draft is unavailable or no longer editable. Refresh the queue.');
         return { success: true, data: undefined, error: null };
       } catch (err) {
         return { success: false, data: null, error: err as Error };
@@ -195,12 +225,15 @@ export class MessagesSDK {
   static async rejectDraft(draftId: string): Promise<SDKResponse<void>> {
     return telemetry.measure('MessagesSDK.rejectDraft', async () => {
       try {
-        const { error } = await this.client
+        const { data, error } = await this.client
           .from('message_queue')
           .update({ status: 'CANCELLED' })
-          .eq('id', draftId);
+          .eq('id', draftId)
+          .in('status', ['WAITING_FOR_REVIEW', 'APPROVED_WAITING'])
+          .select('id');
 
         if (error) throw error;
+        if (data?.length !== 1) throw new Error('Draft is unavailable or no longer cancellable. Refresh the queue.');
         
         telemetry.track('message.rejected', { draftId });
         return { success: true, data: undefined, error: null };

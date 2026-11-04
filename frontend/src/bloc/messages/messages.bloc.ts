@@ -101,12 +101,16 @@ export function useMessages() {
   }, [fetchDrafts]);
 
   const updateDraft = useCallback(async (id: string, content: string) => {
-    const result = await MessagesSDK.updateDraft(id, content);
+    const trimmedContent = content.trim();
+    const result = await MessagesSDK.updateDraft(id, trimmedContent);
     if (result.success) {
       setState(prev => ({
         ...prev,
         drafts: prev.drafts.map(d => 
-          d.id === id ? { ...d, generatedContent: content, userEdited: true } : d
+          d.id === id ? {
+            ...d, generatedContent: trimmedContent, editedContent: trimmedContent,
+            userEdited: true, status: 'WAITING_FOR_REVIEW',
+          } : d
         )
       }));
       return true;

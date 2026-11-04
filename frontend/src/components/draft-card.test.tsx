@@ -43,4 +43,24 @@ describe('DraftCard', () => {
     fireEvent.click(screen.getByText('Edit'));
     expect(onEdit).toHaveBeenCalled();
   });
+
+  it('lets an approved draft be edited or cancelled', () => {
+    const onEdit = vi.fn();
+    const onReject = vi.fn();
+    render(<DraftCard {...defaultProps} status="APPROVED_WAITING" onEdit={onEdit} onReject={onReject} />);
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel draft' }));
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onReject).toHaveBeenCalledOnce();
+  });
+
+  it('disables actions while a change is pending', () => {
+    const onApprove = vi.fn();
+    render(<DraftCard {...defaultProps} isBusy onApprove={onApprove} />);
+    const approve = screen.getByRole('button', { name: 'Approve' });
+    expect(approve).toBeDisabled();
+    fireEvent.click(approve);
+    expect(onApprove).not.toHaveBeenCalled();
+  });
 });
