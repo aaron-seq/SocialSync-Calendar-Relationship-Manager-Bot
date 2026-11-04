@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main, 'feature/**', 'codex/**']
   pull_request:
-    branches: [main]
 
 jobs:
   lint-and-typecheck:

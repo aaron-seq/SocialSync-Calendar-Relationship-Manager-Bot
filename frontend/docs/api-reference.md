@@ -44,16 +44,26 @@ Creates a new event (one-time or recurring).
 
 ## 3. MessagesSDK (`src/services/messagesSDK.ts`)
 
-### `generateDraft(contactId, eventId, context)`
+### `generateDraft(contactId: string, eventId?: string)`
 
-Uses the **AIService** to generate a message draft based on the contact's intimacy level and the event type.
+Uses `llm.service.ts` (Groq, with a template fallback) to generate a draft from contact and optional event context. The event must be accessible and belong to the specified contact. Failed context lookup or unsuccessful/empty generation returns an error without saving.
 
 - **Returns**: `Promise<SDKResponse<DraftWithContext>>`
-- **Auto-Send**: If contact has `ALWAYS_AUTO_SEND` policy, the draft status will be `APPROVED_WAITING`.
+- **Approval**: Applies event override → contact default → significance. Templates and missing model provenance always require review. See [approval policy](../../docs/automation_policy.md).
+- **Context**: Returned data includes `contactName`, `contactAvatar`, `healthScore`, and optional `eventType`/`eventName` for immediate rendering.
+- **Scheduling**: Retains the stored event date (or generation time for an ad-hoc draft); recurring-occurrence selection and a delivery worker are not implemented by this method.
+
+The UI currently generates ad-hoc check-ins. Call the SDK with a stored event UUID to use event context; virtual IDs from recurrence expansion are not stored UUIDs.
 
 ### `getPendingDrafts()`
 
 Fetches all drafts with status `WAITING_FOR_REVIEW` or `APPROVED_WAITING`.
+
+### `approveDraft(draftId)`, `updateDraft(draftId, content)`, `rejectDraft(draftId)`
+
+Return `Promise<SDKResponse<void>>`. Approval requires `WAITING_FOR_REVIEW`. Edit/cancel accept review or approved drafts; editing trims nonblank content and resets approval. Each update filters by ID and allowed status and checks that exactly one row was returned. Missing/inaccessible/ineligible drafts return failure instead of success. Status guards do not detect simultaneous edits within the same state.
+
+Approval only updates queue state; the repository does not send messages.
 
 ## Data Types
 

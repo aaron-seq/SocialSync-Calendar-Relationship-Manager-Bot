@@ -10,7 +10,7 @@
  * - Context panel shows relationship health for informed decisions
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DraftCard } from '@/components/draft-card';
 import { GlassCard } from '@/components/ui/glass-card';
@@ -37,13 +37,33 @@ interface EditingDraft {
 }
 
 export function ReviewQueue() {
-  const { drafts, isLoading, approveDraft, rejectDraft, updateDraft } = useDrafts();
+  const { drafts, isLoading, error, refetch, approveDraft, rejectDraft, updateDraft } = useDrafts();
   const { toasts, addToast, dismissToast } = useToasts();
   
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedDraft, setSelectedDraft] = useState<string | null>(null);
   const [editingDraft, setEditingDraft] = useState<EditingDraft | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const actionPending = useRef(false);
+
+  const runAction = async (action: () => Promise<unknown>, successMessage: string) => {
+    if (actionPending.current) return;
+    actionPending.current = true;
+    setIsUpdating(true);
+    try {
+      await action();
+      addToast({ type: 'success', message: successMessage });
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message :
+        typeof cause === 'object' && cause !== null && 'message' in cause ? String(cause.message) :
+        'Could not update draft. Please try again.';
+      addToast({ type: 'error', message });
+    } finally {
+      actionPending.current = false;
+      setIsUpdating(false);
+    }
+  };
   
   const getStatusFromFilter = (f: FilterType) => {
     switch (f) {
@@ -60,8 +80,7 @@ export function ReviewQueue() {
   const approvedCount = statusCounts['APPROVED_WAITING'] || 0;
   
   const handleApprove = async (id: string) => {
-    await approveDraft(id);
-    addToast({ type: 'success', message: 'Draft approved and scheduled' });
+    await runAction(() => approveDraft(id), 'Draft approved');
   };
   
   const handleEdit = (id: string) => {
@@ -78,24 +97,25 @@ export function ReviewQueue() {
   
   const handleSaveEdit = async () => {
     if (editingDraft && editContent.trim()) {
-      await updateDraft(editingDraft.id, editContent.trim());
-      addToast({ type: 'success', message: 'Draft updated successfully' });
-      setEditingDraft(null);
-      setEditContent('');
+      await runAction(async () => {
+        await updateDraft(editingDraft.id, editContent.trim());
+        setEditingDraft(null);
+        setEditContent('');
+      }, 'Draft updated; review and approve the revised message');
     }
   };
   
   const handleCancelEdit = () => {
+    if (actionPending.current) return;
     setEditingDraft(null);
     setEditContent('');
   };
   
   const handleReject = async (id: string) => {
-    await rejectDraft(id);
-    addToast({ type: 'success', message: 'Draft cancelled' });
+    await runAction(() => rejectDraft(id), 'Draft cancelled');
   };
   
-  if (isLoading) {
+  if (isLoading && drafts.length === 0 && !editingDraft && !isUpdating) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-moon-dust">Loading drafts...</div>
@@ -106,6 +126,13 @@ export function ReviewQueue() {
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {error && (
+        <div role="alert" className="glass-card p-4 text-toxic-rose">
+          <p>Could not load drafts: {error}</p>
+          <button onClick={() => refetch()} className="mt-2 underline">Retry</button>
+        </div>
+      )}
       
       {/* Edit Modal */}
       <AnimatePresence>
@@ -130,6 +157,8 @@ export function ReviewQueue() {
                 </h2>
                 <button
                   onClick={handleCancelEdit}
+                  disabled={isUpdating}
+                  aria-label="Close editor"
                   className="p-2 rounded-lg hover:bg-white/10 text-moon-dust hover:text-starlight transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -138,6 +167,8 @@ export function ReviewQueue() {
               
               <textarea
                 value={editContent}
+                aria-label="Draft message"
+                disabled={isUpdating}
                 onChange={(e) => setEditContent(e.target.value)}
                 className="w-full h-48 p-4 bg-void-slate/50 border border-white/10 rounded-xl text-starlight resize-none focus:outline-none focus:border-neon-violet/50"
                 placeholder="Enter your message..."
@@ -146,13 +177,14 @@ export function ReviewQueue() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleCancelEdit}
+                  disabled={isUpdating}
                   className="flex-1 py-3 rounded-xl border border-white/10 text-moon-dust hover:text-starlight hover:bg-white/5 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  disabled={!editContent.trim()}
+                  disabled={!editContent.trim() || isUpdating}
                   className="flex-1 btn-neon-solid flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="w-4 h-4" />
@@ -182,7 +214,7 @@ export function ReviewQueue() {
           </div>
           <div className="glass-card px-4 py-2 rounded-xl flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-cyber-emerald" />
-            <span className="text-sm font-medium text-starlight">{approvedCount} Scheduled</span>
+            <span className="text-sm font-medium text-starlight">{approvedCount} Approved</span>
           </div>
         </div>
       </div>
@@ -200,7 +232,7 @@ export function ReviewQueue() {
                 : 'text-moon-dust hover:text-starlight hover:bg-white/5'
             )}
           >
-            {f === 'all' ? 'All Drafts' : f === 'review' ? 'Needs Review' : 'Scheduled'}
+            {f === 'all' ? 'All Drafts' : f === 'review' ? 'Needs Review' : 'Approved'}
           </button>
         ))}
       </div>
@@ -209,11 +241,11 @@ export function ReviewQueue() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Draft Cards - 2 columns */}
         <div className="lg:col-span-2 space-y-4">
-          {drafts.length === 0 && (
+          {drafts.length === 0 && !error && !isLoading && (
             <EmptyState
               icon={MessageSquare}
               title="No drafts yet"
-              description="When events trigger, AI-generated drafts will appear here for your review"
+              description="Generate a draft from Contacts or the Dashboard to review it here"
             />
           )}
           
@@ -236,6 +268,7 @@ export function ReviewQueue() {
                   : 'Not scheduled'
                 }
                 isSelected={selectedDraft === draft.id}
+                isBusy={isUpdating}
                 onClick={() => setSelectedDraft(draft.id)}
                 onApprove={() => handleApprove(draft.id)}
                 onEdit={() => handleEdit(draft.id)}

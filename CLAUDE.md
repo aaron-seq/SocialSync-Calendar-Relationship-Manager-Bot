@@ -22,7 +22,7 @@ CI runs lint, typecheck, test, and build. All four must pass.
 Layered, one direction only: `pages` → `bloc` → `services` → Supabase.
 
 - `src/bloc/` — state. Custom hook-based BLoC, one per domain (contacts, events, messages).
-- `src/services/` — the only place that touches Supabase or the network. `*SDK.ts` files wrap tables; `llm.service.ts` talks to Ollama.
+- `src/services/` — the only place that touches Supabase or the network. `*SDK.ts` files wrap tables; `llm.service.ts` talks to Groq.
 - `src/utils/` — pure functions, no I/O. `relationship-math.ts` holds the health-score and ghosting-risk formulas.
 - `src/components/` — presentational. No data fetching.
 
@@ -37,6 +37,6 @@ Components must not import from `services/`. Go through a bloc.
 
 ## Gotchas
 
-- `llm.service.ts` falls back to hardcoded templates when Ollama is unreachable, and returns `success: true` when it does. Check `modelUsed === 'fallback-template'` to tell a real generation from a fallback.
+- `llm.service.ts` returns templates when Groq is unconfigured/unavailable, with `success: true` and `modelUsed === 'fallback-template'`. `MessagesSDK` always queues templates for review. Approval rules are in `utils/automation-policy.ts` and `docs/automation_policy.md`; editing an approved draft requires renewed approval. No delivery worker exists.
 - The health score in `relationship-math.ts` is a decay curve tuned by hand. Changing the constants changes every contact's displayed score — update the tests in the same commit.
 - Supabase Row Level Security is defined in `database/schema.sql`, not in app code. A query that returns empty is usually an RLS policy, not a bug in the SDK layer.

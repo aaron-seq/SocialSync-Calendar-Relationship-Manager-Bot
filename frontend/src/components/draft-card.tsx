@@ -18,6 +18,7 @@ interface DraftCardProps {
   status: 'WAITING_FOR_REVIEW' | 'APPROVED_WAITING' | 'PENDING_GENERATION'
   scheduledTime?: string
   isSelected?: boolean
+  isBusy?: boolean
   onApprove?: () => void
   onEdit?: () => void
   onReject?: () => void
@@ -36,6 +37,7 @@ export function DraftCard({
   status,
   scheduledTime,
   isSelected,
+  isBusy = false,
   onApprove,
   onEdit,
   onReject,
@@ -87,7 +89,7 @@ export function DraftCard({
             policyStyle.bg, policyStyle.text
           )}>
             {status === 'WAITING_FOR_REVIEW' ? 'Review' : 
-             status === 'APPROVED_WAITING' ? 'Scheduled' : 'Generating...'}
+             status === 'APPROVED_WAITING' ? 'Approved' : 'Generating...'}
           </span>
         </div>
         
@@ -124,22 +126,26 @@ export function DraftCard({
         )}
         
         {/* Actions */}
-        {status === 'WAITING_FOR_REVIEW' && (
+        {(status === 'WAITING_FOR_REVIEW' || status === 'APPROVED_WAITING') && (
           <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={(e) => { e.stopPropagation(); onApprove?.() }}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyber-emerald/20 text-cyber-emerald font-medium transition-all hover:bg-cyber-emerald/30"
-            >
-              <Check className="w-4 h-4" />
-              Approve
-            </motion.button>
+            {status === 'WAITING_FOR_REVIEW' && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={(e) => { e.stopPropagation(); onApprove?.() }}
+                disabled={isBusy}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyber-emerald/20 text-cyber-emerald font-medium transition-all hover:bg-cyber-emerald/30"
+              >
+                <Check className="w-4 h-4" />
+                Approve
+              </motion.button>
+            )}
             
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={(e) => { e.stopPropagation(); onEdit?.() }}
+              disabled={isBusy}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-solar-amber/20 text-solar-amber font-medium transition-all hover:bg-solar-amber/30"
             >
               <Edit3 className="w-4 h-4" />
@@ -150,6 +156,8 @@ export function DraftCard({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={(e) => { e.stopPropagation(); onReject?.() }}
+              disabled={isBusy}
+              aria-label="Cancel draft"
               className="px-4 py-2.5 rounded-xl bg-toxic-rose/20 text-toxic-rose transition-all hover:bg-toxic-rose/30"
             >
               <X className="w-4 h-4" />

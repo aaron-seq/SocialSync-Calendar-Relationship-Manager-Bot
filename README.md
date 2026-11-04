@@ -1,120 +1,61 @@
-# SocialSync - AI Relationship Manager (2026 Edition)
+# SocialSync
 
-SocialSync is a "High-Touch" Relationship Management PWA designed to help you stay connected with your network through intelligent, AI-driven interactions.
+SocialSync helps individuals keep track of contacts, relationship health, and recurring occasions, then prepare messages to review before sending.
 
-## 🚀 Features
+## What works
 
-- **Dynamic Health Scoring**: Automatically tracks relationship health based on interaction frequency and intimacy.
-- **AI Drafts**: Generates context-aware message drafts for birthdays, anniversaries, and check-ins.
-- **Zero-Touch Sync**: Real-time synchronization across devices using Supabase Realtime.
-- **PWA Ready**: Installable on mobile/desktop with offline support.
-- **Immersive UI**: Glassmorphism design with ambient animations and "2026" aesthetics.
+- Create, edit, search, and delete contacts stored in Supabase.
+- Record events and view recurring occasions in a calendar.
+- Generate check-in drafts from Contacts or the Dashboard using Groq, with built-in templates when Groq is unavailable.
+- Review, edit, approve, and cancel drafts in the War Room. Templates require review; editing an approved draft requires a fresh approval.
+- View relationship health estimates and browser reminders while the app is running.
 
-## 🛠️ Tech Stack
+**Current limits:** approval records queue state; this repository has no delivery worker or messaging-provider integration. Event-driven generation is available through the SDK, but no cron job invokes it. Anonymous sessions are tied to one browser; cross-device account sign-in is not implemented. The service worker caches some assets, but database access still requires connectivity.
 
-- **Frontend**: React 19, Vite, TypeScript
-- **State**: Custom BLoC Pattern (Hooks)
-- **Styling**: Tailwind CSS, Framer Motion
-- **Backend**: Supabase (Postgres, Realtime, Edge Functions)
-- **Testing**: Vitest, React Testing Library
+## Local setup
 
-## 📂 Project Structure
+Prerequisites: Node.js 20+ and npm 10+ (CI uses Node 20; local validation used Node 22.18.0 / npm 11.6.2), Git, and a Supabase project.
 
-```
-frontend/
-├── src/
-│   ├── bloc/          # Business Logic Components (State)
-│   ├── components/    # UI Components
-│   ├── services/      # SDK Layer (Supabase interactions)
-│   ├── hooks/         # Utility Hooks
-│   ├── utils/         # Helpers (Math, Date Logic)
-│   └── test/          # Test Setup
-├── docs/              # Architecture & API documentation
-└── public/            # Static Assets
+```sh
+git clone https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot.git
+cd SocialSync-Calendar-Relationship-Manager-Bot/frontend
+npm ci
 ```
 
-## 🚦 Getting Started
+1. Run [database/schema.sql](database/schema.sql) once against a **new** Supabase project. It creates tables, RLS policies, and Realtime publication entries; it is not a repeatable migration script.
+2. Enable **Anonymous sign-ins** in Supabase Authentication. Each browser receives its own user ID for RLS.
+3. Copy [frontend/.env.example](frontend/.env.example) to `frontend/.env`. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the project's public client credentials. Never use a service-role key.
+4. Optionally set `VITE_GROQ_API_KEY` for personal local use. [Vite exposes `VITE_` values in browser bundles](https://vite.dev/guide/env-and-mode#env-variables); server-side key handling is required before public deployment ([issue #5](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5)).
 
-1. **Clone & Install**
-
-   ```bash
-   git clone https://github.com/your-repo/socialsync.git
-   cd socialsync/frontend
-   npm install
-   ```
-
-2. **Environment Setup**
-   Copy `.env.example` to `.env` and add your Supabase credentials.
-
-3. **Run Development Server**
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Run Tests**
-   ```bash
-   npm run test
-   ```
-
-## 📖 Documentation
-
-- [Architecture Overview](frontend/docs/architecture.md)
-- [API Reference](frontend/docs/api-reference.md)
-- [Contributing Guidelines](frontend/CONTRIBUTING.md)
-
-## 📱 PWA Features
-
-- **Offline Mode**: Core assets are cached via Service Worker.
-- **Installable**: Supports "Add to Homescreen" on iOS/Android.
-- **Push Notifications**: Integrated (requires permission).
-- **AI Drafting**: Automated personalized message generation
-- **Smart Automation**: Hierarchical auto-send vs review policies
-- **Dark UI**: Modern glassmorphism "Nocturnal Glass" interface
-
-```
-SocialSync-Calendar-Relationship-Manager-Bot/
-├── database/
-│   └── schema.sql          # PostgreSQL schema for Supabase
-├── docs/
-│   └── automation_policy.md # Auto-send vs Review logic
-├── frontend/
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── layouts/        # Dashboard layouts
-│   │   ├── pages/          # Route pages
-│   │   └── styles/         # Tailwind CSS globals
-│   └── package.json
-└── README.md
-```
-
-## Database Schema
-
-The PostgreSQL schema includes:
-
-- `contacts` - User relationships with automation defaults
-- `events` - Triggers with override policies
-- `interaction_logs` - AI context memory
-- `message_queue` - Draft management
-- `user_assets` - Context injection data
-- `user_preferences` - Global settings
-
-## Quick Start
-
-### Database Setup
-
-1. Create a new Supabase project
-2. Run `database/schema.sql` in the SQL Editor
-3. Configure Row Level Security (included in schema)
-
-### Frontend Setup
-
-```bash
-cd frontend
-npm install
+```sh
 npm run dev
 ```
 
-## License
+Open the URL printed by Vite (default `http://localhost:3000`). Without Supabase credentials the app displays **Connect your database**. A configured app signs in anonymously before loading contacts. These live service steps were not verified in the latest local run; see [validation evidence](docs/engineering-evidence.md).
 
-MIT
+## Try the review workflow
+
+Create a contact, select **Generate Draft** from Contacts or use the Dashboard, then open **War Room**. Review the message and its rationale. **Approve** moves it to **Approved**; **Edit** returns it to review, and **Cancel draft** removes it from the pending queue. If a save fails, the editor preserves the text so you can retry. Approval does not send a message.
+
+The SDK's optional `eventId` applies event overrides, contact policy, and significance in that order. Templates always require review. See [automation policy](docs/automation_policy.md) for the exact rules.
+
+## Checks
+
+Run from `frontend/`:
+
+```sh
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Tests use jsdom and mocked external services; they do not establish live Supabase RLS, Realtime, or provider behavior. Dependency audit findings remain tracked in [issue #6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6).
+
+## Reference
+
+- [Architecture](frontend/docs/architecture.md) · [SDK API](frontend/docs/api-reference.md)
+- [Engineering decisions and validation](docs/engineering-evidence.md)
+- [Contributing](CONTRIBUTING.md) · [Open issues](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues)
+
+MIT licensed; see [LICENSE](LICENSE).
