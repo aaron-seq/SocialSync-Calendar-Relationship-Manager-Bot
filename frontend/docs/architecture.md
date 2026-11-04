@@ -58,21 +58,21 @@ The SDK layer consists of static classes that act as the **sole entry point** fo
 
 ## 4. AI Integration Flow
 
-The AI Message System uses a template-based service (simulation for v1) to generate context-aware message drafts.
+`llm.service.ts` calls Groq to generate context-aware drafts and uses identified fallback templates when the provider is unconfigured or unavailable. `MessagesSDK` maps contact/event context, applies the [approval policy](../../docs/automation_policy.md), and persists the result. Templates require review. The browser currently holds the optional Groq key; [server-side credential handling](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5) is required before public deployment. Approval updates queue state; no delivery worker is present.
 
 ```mermaid
 sequenceDiagram
-    participant UI as ReviewQueue
+    participant UI as Contacts or Dashboard
     participant Bloc as MessagesBloc
     participant SDK as MessagesSDK
-    participant AI as AIService
+    participant AI as LLMService
     participant DB as Supabase
 
     UI->>Bloc: generateDraft(contactId)
     Bloc->>SDK: generateDraft(contactId)
     SDK->>DB: Fetch Contact & Event Context
     DB-->>SDK: Contact Context
-    SDK->>AI: generateMessage(context)
+    SDK->>AI: generateDraftContent(contact, event)
     AI-->>SDK: { content, rationale }
     SDK->>DB: insert into message_queue
     DB-->>SDK: Draft Record
@@ -84,7 +84,7 @@ sequenceDiagram
 
 ```
 src/
-├── blob/           # Business Logic Components (Custom Hooks)
+├── bloc/           # Business Logic Components (Custom Hooks)
 │   ├── contacts/
 │   ├── events/
 │   └── messages/
@@ -96,7 +96,7 @@ src/
 │   ├── contactsSDK.ts
 │   ├── eventsSDK.ts
 │   ├── messagesSDK.ts
-│   └── ai.service.ts
+│   └── llm.service.ts
 ├── types/          # TypeScript Definitions
 └── utils/          # Helper Functions (Math, Date, etc.)
 ```

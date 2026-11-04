@@ -133,7 +133,7 @@ SocialSync-Calendar-Relationship-Manager-Bot/
 - Sensible defaults per contact
 - Safety fallback for high-significance events
 
-### ADR-003: Demo Mode for Development
+### ADR-003: Demo Mode for Development (superseded)
 
 **Context**: Allow development without Supabase configuration.
 
@@ -143,3 +143,5 @@ SocialSync-Calendar-Relationship-Manager-Bot/
 - Easy onboarding for new developers
 - UI can be developed independently of backend
 - Clear separation between demo and production modes
+
+**Current behavior**: Demo mode was removed in [PR #1](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/pull/1). Missing Supabase credentials now show a setup screen; the app requires an anonymous authenticated session for live data. See the [current architecture](../frontend/docs/architecture.md) and [setup guide](../README.md).

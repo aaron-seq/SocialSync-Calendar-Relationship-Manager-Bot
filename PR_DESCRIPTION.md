@@ -1,45 +1,41 @@
-# Remove Demo Data and Enforce Supabase Connection
+## Description
 
-## Overview
+Draft generation could auto-approve a template or ignore an event's FORCE_REVIEW override. Queue actions could report success without changing a row, and repeated edits could display old text. This change applies the full approval hierarchy, requires review for templates, validates event context, and restricts queue actions to eligible states with affected-row checks.
 
-This Pull Request marks a significant transition in the application's lifecycle, moving it from a prototyping phase to a production-ready state. The primary objective is to eliminate all dependencies on hardcoded demo data and enforce a mandatory connection to the Supabase backend. This ensures that the application operates strictly with real user data, enhancing security and reliability.
+Approved drafts can now be edited or cancelled in the War Room; edits require renewed approval. Load/action errors are visible, failed edits retain text, and pending actions cannot be submitted twice. The UI labels approval accurately because no delivery worker exists. CI now runs on PRs to the actual default branch and on codex branches.
 
-## Detailed Changes
+Addresses [#4](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/4). No open PRs existed to integrate; merged PR #3 is already in the base.
 
-### 1. Removal of Demo Data Infrastructure
+## Type of Change
 
-- **Deleted `demo-data.service.ts`**: This service was responsible for seeding local storage with mock contacts, events, and drafts. Its removal ensures no fake data can be accidentally injected into the application.
-- **Deleted `storage.service.ts`**: This local storage wrapper was solely used to emulate a database for the demo mode. With the shift to Supabase, this intermediate simulation layer is no longer required and has been removed to reduce code bloat.
+- [x] Bug fix
+- [x] Documentation update
+- [x] CI trigger correction
 
-### 2. Strict Database Connection Enforcement
+## Validation
 
-- **Updated `supabase.service.ts`**:
-  - Removed the `createMockClient` implementation which previously allowed the app to degrad gracefully into a demo mode when credentials were missing.
-  - Implemented a strict check for `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Use of the `getSupabaseClient` function will now throw a clear error if these environmental variables are not configured, preventing the application from running in an undefined state.
+Personally run locally on Windows, Node 22.18.0 / npm 11.6.2:
 
-### 3. Build and Type Safety Improvements
+- `cd frontend` then `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`: pass; 102 tests across 11 files (baseline 45 across 6).
+- Test-first failures reproduced policy, stale-write, repeated-edit, duplicate-action, and unhandled-error defects before implementation.
+- `/review` integration journey passes with the actual page/BLoC/SDK and real Supabase query builder against mocked HTTP responses. Realtime is stubbed.
+- Local Vite startup and HTTP requests to `/review` and `/src/main.tsx` succeed.
+- Workflow YAML parsed and trigger/job structure checked; relative documentation links and `git diff --check` pass.
 
-- **Refactored `messages.bloc.ts`**:
-  - Updated the `generateDraft` function call to match the `MessagesSDK` signature, removing an unused `context` argument that was causing type errors.
-  - Resolved unused variable warnings to clean up the codebase.
-- **Test Suite Updates**:
-  - Deleted `frontend/src/__tests__/bloc/drafts.bloc.test.ts`: This test file relied on logic heavily tied to the demo data generation and deprecated utility functions.
-  - Updated `frontend/src/__tests__/bloc/contacts.bloc.test.ts`: Fixed import paths to correctly reference the refactored BLoC structure.
+One parallel lint attempt raced a temporary Vite config file; standalone and final sequential checks pass. Existing build warnings remain: old Browserslist data, missing `/grid.svg`, chunk above 500 kB. Hosted CI results are separate from these local results.
 
-## Configuration Requirements
+## Compatibility and remaining limits
 
-This change introduces a strict dependency on environment variables. For the application to start, the following keys must be present in the `frontend/.env` file:
+No dependency, schema, or public method signature changes. Templates now require review even under FORCE_AUTO; editing an approved message resets its approval. Existing queued drafts are unchanged. State guards are in the SDK, not database constraints, and do not detect concurrent edits within the same allowed state. Revert the implementation commits to roll back; no migration rollback is needed.
 
-- `VITE_SUPABASE_URL`: The unique URL for the Supabase project.
-- `VITE_SUPABASE_ANON_KEY`: The public anonymous key for client-side API access.
+As requested, completion uses local evidence; live Supabase/Groq checks remain tracked in [#7](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7). Provider-key exposure [#5](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5), dependency audit findings [#6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6), and recurring calendar defects [#8](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/8) remain open. This PR does not establish production readiness.
 
-**Note:** A template has been provided in `.env.example`.
+Details: [decision and evidence](docs/engineering-evidence.md), [approval policy](docs/automation_policy.md).
 
-## Verification StepsPerformed
+## Checklist
 
-1.  **Manual Verification**:
-    - Launched the application locally at `http://localhost:5173`.
-    - Confirmed that the "Using Demo Mode" warning is no longer present in the console logs.
-    - Verified that the application attempts to fetch data directly from the configured Supabase endpoint.
-2.  **Automated Verification**:
-    - Ran `npm run typecheck` to ensure all TypeScript definitions are valid and consistent across the codebase.
+- [x] Self-review completed
+- [x] Meaningful regression tests added
+- [x] Documentation updated
+- [x] Required local checks pass
+- [ ] Required repository review and hosted CI before merge

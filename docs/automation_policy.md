@@ -1,172 +1,44 @@
-# Automation Policy: Auto-Send vs Review Logic
+# Draft approval policy
 
-This document describes the hierarchical decision tree that determines whether a message requires human approval or can be auto-sent.
+`MessagesSDK.generateDraft(contactId, eventId?)` evaluates [determineDraftStatus](../frontend/src/utils/automation-policy.ts) before inserting a draft. `APPROVED_WAITING` means approved queue state; no delivery worker or cron job is implemented here.
 
-## The Safety Check Algorithm
+## Generation rules
 
-When the cron job generates a draft for an upcoming event, the system evaluates three levels in order:
+First, fallback templates or missing model provenance require `WAITING_FOR_REVIEW`, even for `FORCE_AUTO` and `ALWAYS_AUTO_SEND`. Unsuccessful or empty generation is rejected. If an event ID is supplied, a missing, inaccessible, or mismatched event aborts generation rather than dropping the event's review rules.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    DECISION HIERARCHY                        │
-├─────────────────────────────────────────────────────────────┤
-│  Level 1: Event Override       ← Highest Priority           │
-│  Level 2: Contact Default      ← If Event = USE_DEFAULT     │
-│  Level 3: Significance Level   ← If Contact = LOW_RISK      │
-└─────────────────────────────────────────────────────────────┘
-```
+For model-generated content, evaluate in order:
 
----
+| Level | Value | Result |
+| --- | --- | --- |
+| Event override | `FORCE_REVIEW` | `WAITING_FOR_REVIEW` |
+| Event override | `FORCE_AUTO` | `APPROVED_WAITING` |
+| Event override | `USE_CONTACT_DEFAULT` | Evaluate contact policy |
+| Contact policy | `ALWAYS_REVIEW` | `WAITING_FOR_REVIEW` |
+| Contact policy | `ALWAYS_AUTO_SEND` | `APPROVED_WAITING` |
+| Contact policy | `AUTO_SEND_LOW_RISK` | Approve only when an event has `LOW` or `MEDIUM` significance |
 
-## Level 1: Check `automation_override` on Event
+Unknown/null values at an evaluated decision level require review. An ad-hoc check-in has no event significance, so `AUTO_SEND_LOW_RISK` requires review. With no event, `ALWAYS_AUTO_SEND` still approves model-generated content.
 
-| Value | Result | Proceeds? |
-|-------|--------|-----------|
-| `FORCE_REVIEW` | Status = `WAITING_FOR_REVIEW` | ❌ Final |
-| `FORCE_AUTO` | Status = `APPROVED_WAITING` | ❌ Final |
-| `USE_CONTACT_DEFAULT` | Continue to Level 2 | ✅ Yes |
+For example, a `FORCE_REVIEW` promotion requires review even when the contact defaults to automatic approval. A model-generated birthday with `USE_CONTACT_DEFAULT`, `AUTO_SEND_LOW_RISK`, and `MEDIUM` significance is approved. The same birthday generated from a fallback template requires review.
 
----
+## Queue actions
 
-## Level 2: Check `default_auto_policy` on Contact
+| Action | Allowed source state | Result |
+| --- | --- | --- |
+| Approve | `WAITING_FOR_REVIEW` | `APPROVED_WAITING` |
+| Edit nonblank content | `WAITING_FOR_REVIEW`, `APPROVED_WAITING` | Save trimmed content; set `WAITING_FOR_REVIEW` |
+| Cancel | `WAITING_FOR_REVIEW`, `APPROVED_WAITING` | `CANCELLED` |
 
-| Value | Result | Proceeds? |
-|-------|--------|-----------|
-| `ALWAYS_REVIEW` | Status = `WAITING_FOR_REVIEW` | ❌ Final |
-| `ALWAYS_AUTO_SEND` | Status = `APPROVED_WAITING` | ❌ Final |
-| `AUTO_SEND_LOW_RISK` | Continue to Level 3 | ✅ Yes |
+Each SDK update filters by ID and allowed status in the same request and verifies one returned row. Zero affected rows produce an error, covering deleted, inaccessible, or ineligible drafts. Terminal states cannot be changed by these SDK actions. The War Room shows failed actions, retains failed edits, offers load retries, and disables actions during a pending request.
 
----
+These are application rules, not database constraints. Direct database clients can bypass the SDK, and concurrent changes within the same allowed state do not use content-version checks. Existing queued drafts are not reclassified by this change. No schema migration is needed. Live RLS/concurrency verification is tracked in [issue #7](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7).
 
-## Level 3: Check `significance_level` on Event
+## Verification
 
-| Value | Result | Reasoning |
-|-------|--------|-----------|
-| `HIGH` | Status = `WAITING_FOR_REVIEW` | Too risky to botch |
-| `MEDIUM` | Status = `APPROVED_WAITING` | Safe enough |
-| `LOW` | Status = `APPROVED_WAITING` | Very safe |
+From `frontend/`:
 
----
-
-## Implementation (Python Pseudocode)
-
-```python
-def determine_message_status(event: Event, contact: Contact) -> str:
-    """
-    Determine if a message requires review or can be auto-sent.
-    Returns: 'WAITING_FOR_REVIEW' or 'APPROVED_WAITING'
-    """
-    
-    # Level 1: Event Override
-    if event.automation_override == 'FORCE_REVIEW':
-        return 'WAITING_FOR_REVIEW'
-    if event.automation_override == 'FORCE_AUTO':
-        return 'APPROVED_WAITING'
-    
-    # Level 2: Contact Default (only if USE_CONTACT_DEFAULT)
-    if contact.default_auto_policy == 'ALWAYS_REVIEW':
-        return 'WAITING_FOR_REVIEW'
-    if contact.default_auto_policy == 'ALWAYS_AUTO_SEND':
-        return 'APPROVED_WAITING'
-    
-    # Level 3: Significance (only if AUTO_SEND_LOW_RISK)
-    if event.significance_level == 'HIGH':
-        return 'WAITING_FOR_REVIEW'
-    
-    return 'APPROVED_WAITING'
+```sh
+npm test -- src/services/messagesSDK.test.ts src/utils/automation-policy.test.ts src/bloc/messages/messages.bloc.test.ts src/pages/review-queue.test.tsx src/pages/review-queue.integration.test.tsx src/components/draft-card.test.tsx
 ```
 
----
-
-## Example Scenarios
-
-### Scenario 1: Best Friend's Birthday
-- **Contact**: Riya | `default_auto_policy = AUTO_SEND_LOW_RISK`
-- **Event**: Birthday | `significance_level = MEDIUM` | `automation_override = USE_CONTACT_DEFAULT`
-
-**Flow**: 
-1. Event override = `USE_CONTACT_DEFAULT` → Continue
-2. Contact policy = `AUTO_SEND_LOW_RISK` → Continue  
-3. Significance = `MEDIUM` → **AUTO-SEND** ✅
-
----
-
-### Scenario 2: Best Friend's Promotion
-- **Contact**: Riya | `default_auto_policy = AUTO_SEND_LOW_RISK`
-- **Event**: Promotion | `significance_level = HIGH` | `automation_override = USE_CONTACT_DEFAULT`
-
-**Flow**:
-1. Event override = `USE_CONTACT_DEFAULT` → Continue
-2. Contact policy = `AUTO_SEND_LOW_RISK` → Continue
-3. Significance = `HIGH` → **REVIEW REQUIRED** 🔍
-
----
-
-### Scenario 3: Boss's Birthday (Always Review)
-- **Contact**: Michael | `default_auto_policy = ALWAYS_REVIEW`
-- **Event**: Birthday | `significance_level = MEDIUM`
-
-**Flow**:
-1. Event override = `USE_CONTACT_DEFAULT` → Continue
-2. Contact policy = `ALWAYS_REVIEW` → **REVIEW REQUIRED** 🔍
-
----
-
-### Scenario 4: Wife's Anniversary (Force Auto)
-- **Contact**: Sarah | `default_auto_policy = ALWAYS_AUTO_SEND`
-- **Event**: Anniversary | `automation_override = USE_CONTACT_DEFAULT`
-
-**Flow**:
-1. Event override = `USE_CONTACT_DEFAULT` → Continue
-2. Contact policy = `ALWAYS_AUTO_SEND` → **AUTO-SEND** ✅
-
----
-
-### Scenario 5: Wife's Career Change (Override)
-- **Contact**: Sarah | `default_auto_policy = ALWAYS_AUTO_SEND`
-- **Event**: New Job | `automation_override = FORCE_REVIEW`
-
-**Flow**:
-1. Event override = `FORCE_REVIEW` → **REVIEW REQUIRED** 🔍
-   *(Overrides contact's "always auto" setting)*
-
----
-
-## Database SQL for Policy Check
-
-```sql
--- Function to determine message status
-create or replace function determine_automation_status(
-  p_event_id uuid
-) returns text as $$
-declare
-  v_event events%rowtype;
-  v_contact contacts%rowtype;
-begin
-  -- Fetch event and contact
-  select * into v_event from events where id = p_event_id;
-  select * into v_contact from contacts where id = v_event.contact_id;
-  
-  -- Level 1: Event Override
-  if v_event.automation_override = 'FORCE_REVIEW' then
-    return 'WAITING_FOR_REVIEW';
-  elsif v_event.automation_override = 'FORCE_AUTO' then
-    return 'APPROVED_WAITING';
-  end if;
-  
-  -- Level 2: Contact Default
-  if v_contact.default_auto_policy = 'ALWAYS_REVIEW' then
-    return 'WAITING_FOR_REVIEW';
-  elsif v_contact.default_auto_policy = 'ALWAYS_AUTO_SEND' then
-    return 'APPROVED_WAITING';
-  end if;
-  
-  -- Level 3: Significance Level (AUTO_SEND_LOW_RISK)
-  if v_event.significance_level = 'HIGH' then
-    return 'WAITING_FOR_REVIEW';
-  end if;
-  
-  return 'APPROVED_WAITING';
-end;
-$$ language plpgsql;
-```
+The SDK tests cover all 27 combinations of event override, contact policy, and significance using the real Supabase query builder with mocked HTTP. The `/review` integration test exercises approval, two edits, reapproval, and cancellation through the page and BLoC. [Evidence and limits](engineering-evidence.md).
