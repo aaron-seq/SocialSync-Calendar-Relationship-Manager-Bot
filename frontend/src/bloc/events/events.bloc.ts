@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { EventsSDK } from '@/services/eventsSDK';
 import { logger } from '@/lib/logger';
 import { telemetry } from '@/utils/telemetry';
@@ -11,12 +12,7 @@ import type { Event, EventWithContact, SignificanceLevel } from '@/types';
 // =============================================================================
 
 export function calculateDaysUntil(eventDate: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const event = new Date(eventDate);
-  event.setHours(0, 0, 0, 0);
-  const diffTime = event.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return differenceInCalendarDays(parseISO(eventDate), new Date());
 }
 
 export function groupEventsByDate(events: EventWithContact[]): Record<string, EventWithContact[]> {
@@ -44,14 +40,10 @@ export function countByEventType(events: EventWithContact[]): Record<string, num
 
 export function getEventsInRange(events: EventWithContact[], days: number): EventWithContact[] {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + days);
-  
+
   return events.filter(event => {
-    const eventDate = new Date(event.eventDate);
-    return eventDate >= today && eventDate <= endDate;
+    const daysUntil = differenceInCalendarDays(parseISO(event.eventDate), today);
+    return daysUntil >= 0 && daysUntil <= days;
   });
 }
 
