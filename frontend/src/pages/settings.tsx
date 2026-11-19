@@ -85,7 +85,7 @@ export function Settings() {
         )}
         {permission === 'granted' && (
           <p className="text-sm text-cyber-emerald flex items-center gap-2">
-            <Check className="w-4 h-4" /> Enabled. Event reminders will appear as system notifications.
+            <Check className="w-4 h-4" /> Permission granted. Supported browsers can show reminders while SocialSync is open.
           </p>
         )}
         {permission === 'denied' && (
