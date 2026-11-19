@@ -1,0 +1,25 @@
+# SocialSync product brief
+
+SocialSync gives people a calendar for personal occasions and a queue for reviewing check-in drafts. A draft can be edited, approved, or cancelled. Approval records the review decision. Usage, adoption, and willingness to pay are unknown.
+
+| Audience | Job | Evidence |
+| --- | --- | --- |
+| Individuals keeping up with personal contacts | See the right occasion date and decide how to reconnect | Weak for SocialSync demand. The calendar and draft queue show intended use. Comparable reminder reports provide moderate evidence that dates and visibility matter in this category. [Research](GAP-AUDIT.md) |
+| Maintainers and operators | Install from the lockfile, validate behavior, and understand which data and deployment controls need verification | Moderate, based on reproducible install and CI output and the tracked service boundary work. [#5](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5) · [#6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6) · [#7](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7) |
+
+Contacts whose information is stored are affected by privacy decisions. Supabase provides identity and persistence, and optional Groq generation receives draft context. Live provider and tenant behavior need separate validation. [Threat model](../security/THREAT-MODEL.md)
+
+## Roadmap and decisions
+
+| Horizon | Recommendation and acceptance | Decision and trade-off |
+| --- | --- | --- |
+| Now | **FR-01** Show recurring occasions on the intended calendar day. Verify range ends, older series, short months, leap days and UTC, Los Angeles and Kolkata. [#8](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/8) | Solve differently. Repair the current calendar. Frequency in actual use is unknown, but missing and shifted occurrences were reproduced. Keep the existing anniversary and leap-day conventions. |
+| Now | **FR-02** Keep the app usable if browser notifications are unavailable. Verify no background permission request and an eligible reminder when permission is granted. [#10](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/10) | Fix the observed crash. Prompt only on the existing explicit permission controls. |
+| Now | **NFR-01** Reduce applicable tooling alerts and preserve reproducible checks and coverage output. [#6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6) | Patch compatible dependencies. The audit reports affected packages, and each alert still needs exposure triage. Avoid unneeded framework upgrades. |
+| Next | Confirm reviewed draft behavior through integration, then repair Calendar write feedback and preserve unsaved input. [#4](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/4) · [#11](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/11) · [#12](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/12) | Fix reproduced defects. Calendar deletion needs explicit series semantics before wiring a write. |
+| Next | **SR-01** Keep model credentials on an authenticated server before hosted Groq use, and verify persistence and isolation with two synthetic users. [#5](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5) · [#7](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7) | Existing public-hosting prerequisite. First agree on a disposable environment and verify ownership, limits, outage behavior and secret-free builds. |
+| Later | Unattended generation and delivery | Screened out. There is no evidenced SocialSync demand. Reopen when users describe a recurring job the calendar and queue cannot meet and an authorized provider, consent, cancellation and duplicate-delivery design are available. |
+
+The strongest case for unattended delivery is that it could save missed outreach. Dex already documents recurring reminders and AI drafting, so adding those labels offers no evidence of distinctive value. A wrong date or repeated message would carry greater cost with automatic delivery. The research agent and skeptic agreed to repair the current path first. These are recommendations for the product owner. [Dex reminders](https://getdex.com/docs/workflows/reminders) · [Dex AI Assist](https://getdex.com/docs/ai/ai-assist)
+
+Measure the current milestone by whether calendar fixtures display the expected dates and whether people can continue using the calendar when browser notifications fail. The prior fixtures showed omissions and date drift. Product adoption and time saved remain unmeasured. The milestone stays open through review and integration. [Milestone](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/milestone/1) · [Private Project](https://github.com/users/aaron-seq/projects/15) · [Checkpoint](PROJECT-STATUS.md)

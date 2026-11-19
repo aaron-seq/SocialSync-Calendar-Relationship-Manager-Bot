@@ -30,7 +30,7 @@ Logs a new interaction and updates the contact's `last_interaction_date`.
 
 ### `getEvents(startDate, endDate)`
 
-Fetches events within a date range. automatically expands recurring events (e.g., Annual Birthdays) into concrete instances for the requested range.
+Fetches events and expands recurring events over both inclusive local calendar dates. Database date-only values stay on the same calendar day. Weekly and monthly expansion starts near the requested range. Short months use their last day for an anchor such as the 31st, and later months restore the anchor when possible. Annual February 29 occurrences use March 1 in non-leap years. Annual occasions can still appear before the anchor year.
 
 - **Returns**: `Promise<SDKResponse<EventWithContact[]>>`
 
