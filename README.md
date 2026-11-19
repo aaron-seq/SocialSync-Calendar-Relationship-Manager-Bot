@@ -5,16 +5,16 @@ SocialSync helps individuals keep track of contacts, relationship health, and re
 ## What works
 
 - Create, edit, search, and delete contacts stored in Supabase.
-- Record events and view recurring occasions in a calendar.
+- Record events and view recurring occasions on their local calendar dates. A monthly event on the 31st uses the last day of a shorter month and returns to the 31st when possible.
 - Generate check-in drafts from Contacts or the Dashboard using Groq, with built-in templates when Groq is unavailable.
 - Review, edit, approve, and cancel drafts in the War Room. Templates require review; editing an approved draft requires a fresh approval.
-- View relationship health estimates and browser reminders while the app is running.
+- View relationship health estimates and enable reminders on supported browsers while the app is open. Use Settings or the notification bell to grant permission.
 
 **Current limits:** approval records queue state; this repository has no delivery worker or messaging-provider integration. Event-driven generation is available through the SDK, but no cron job invokes it. Anonymous sessions are tied to one browser; cross-device account sign-in is not implemented. The service worker caches some assets, but database access still requires connectivity.
 
 ## Local setup
 
-Prerequisites: Node.js 20+ and npm 10+ (CI uses Node 20; local validation used Node 22.18.0 / npm 11.6.2), Git, and a Supabase project.
+Use Node.js 22.13 or later on the Node 22 line, npm 10 or later, Git, and a Supabase project. CI uses Node.js 22.
 
 ```sh
 git clone https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot.git
@@ -46,16 +46,17 @@ Run from `frontend/`:
 ```sh
 npm run lint
 npm run typecheck
-npm test
+npm run test:coverage
 npm run build
 ```
 
-Tests use jsdom and mocked external services; they do not establish live Supabase RLS, Realtime, or provider behavior. Dependency audit findings remain tracked in [issue #6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6).
+Tests use jsdom and mocked external services. Verify live Supabase row-level security, Realtime, and provider behavior separately. CI publishes the coverage report as a GitHub Actions artifact. [Live validation](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7) · [Dependency checks](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6)
 
 ## Reference
 
 - [Architecture](frontend/docs/architecture.md) · [SDK API](frontend/docs/api-reference.md)
 - [Engineering decisions and validation](docs/engineering-evidence.md)
+- [Product brief and roadmap](docs/product/PRODUCT.md) · [Claims and research](docs/product/GAP-AUDIT.md) · [Trust boundaries](docs/security/THREAT-MODEL.md) · [Delivery checkpoint](docs/product/PROJECT-STATUS.md)
 - [Contributing](CONTRIBUTING.md) · [Open issues](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues)
 
 MIT licensed; see [LICENSE](LICENSE).

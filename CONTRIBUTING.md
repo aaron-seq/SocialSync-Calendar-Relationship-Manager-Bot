@@ -23,7 +23,7 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to maintain a w
 
 ### Prerequisites
 
-- Node.js 20.x or higher
+- Node.js 22.13 or later on the Node 22 line, matching CI
 - npm 10.x or higher
 - Git
 
@@ -31,12 +31,12 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to maintain a w
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/SocialSync-Calendar-Relationship-Manager-Bot.git
+git clone https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot.git
 cd SocialSync-Calendar-Relationship-Manager-Bot
 
 # Install frontend dependencies
 cd frontend
-npm install
+npm ci
 
 # Start development server
 npm run dev

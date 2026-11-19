@@ -1,0 +1,10 @@
+# SocialSync trust boundaries
+
+| Boundary and data | Expected protection | Evidence and next check |
+| --- | --- | --- |
+| Browser session to Supabase Auth and Postgres. Contacts, notes, events and drafts may identify people. | Session identifies the caller and database policies enforce row ownership. | Code and schema reviewed. On a disposable project verify own-user read/write, cross-user denials, reconnection and Realtime. [#7](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/7) |
+| Browser to optional Groq. Contact and event context enters the prompt. | Only information required for a draft should leave the browser. A hosted application needs credentials on the server and a review step before use. | Browser configuration is documented. Verify owner validation, bounded provider requests, failure handling and a production build without provider credentials before hosting. [#5](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/5) |
+| Events to browser notifications. Reminder text can appear outside the tab. | Browser permission follows a user action. Unsupported delivery leaves the app usable. | Mocked permission and failure tests. System delivery behavior remains browser-dependent. [#10](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/10) |
+| Contributor changes to build and test jobs | Pull request jobs operate with read-only repository credentials and generate artifacts from committed source. | Inspect workflow triggers, action revisions, installed runtime, dependency audit and artifact contents. [#6](https://github.com/aaron-seq/SocialSync-Calendar-Relationship-Manager-Bot/issues/6) |
+
+Use [OWASP ASVS 5.0.0](https://asvs.owasp.org/) chapters V8 (authorization), V12 (secure communication), V13 (configuration) and V14 (data protection) when selecting further checks. This review covers the listed paths and fixtures. Live authorization, multi-client concurrency, account recovery and deployed settings remain unverified.

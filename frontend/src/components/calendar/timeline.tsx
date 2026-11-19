@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { format, isToday, isTomorrow, parseISO } from 'date-fns'
+import { format, isToday, isTomorrow, isValid, parseISO } from 'date-fns'
 import { GlassCard } from '@/components/ui/glass-card'
 import { cn } from '@/lib/utils'
 import { Gift, Heart, Briefcase, GraduationCap, Home, Baby, Star, Calendar as CalendarIcon } from 'lucide-react'
@@ -38,9 +38,11 @@ const significanceColors = {
 export function Timeline({ events, onEventClick }: TimelineProps) {
   // Group events by date
   const eventsByDate = events.reduce((acc, event) => {
-    const date = event.eventDate
-    if (!acc[date]) acc[date] = []
-    acc[date].push(event)
+    const date = parseISO(event.eventDate)
+    if (!isValid(date)) return acc
+    const day = format(date, 'yyyy-MM-dd')
+    if (!acc[day]) acc[day] = []
+    acc[day].push(event)
     return acc
   }, {} as Record<string, Event[]>)
   
